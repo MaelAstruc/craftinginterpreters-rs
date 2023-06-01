@@ -31,7 +31,7 @@ impl Lox {
         }
     }
 
-    pub fn run (&self, code: String) {
+    pub fn run(&self, code: String) {
         println!("Run code: {}", code)
         /*let mut scanner: scanner::Scanner = scanner::Scanner::new(code);
     
@@ -41,6 +41,15 @@ impl Lox {
             println!("{}", token.lexeme)
         }*/
     }
+
+    fn error(line: u32, message: &str) {
+        Self::report(line, "", message)
+    }
+
+    fn report(line: u32, at: &str, message: &str) {
+        println!("[line {}] Error {}: {}", line, at, message)
+    }
+
 }
 
 fn main() {
