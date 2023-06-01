@@ -1,4 +1,5 @@
 use std::fs;
+use std::io;
 
 struct Lox {
 }
@@ -20,7 +21,14 @@ impl Lox {
     }
 
     pub fn run_prompt(&self) {
-        println!("Run prompt")
+        let mut buffer: String = String::new();
+        let stdin: io::Stdin = io::stdin();
+        while stdin.read_line(&mut buffer).is_ok() {
+            let trimmed: &str = buffer.trim_end();
+            println!("> {}", trimmed);
+            self.run(trimmed.to_string());
+            buffer.clear();
+        }
     }
 
     pub fn run (&self, code: String) {
