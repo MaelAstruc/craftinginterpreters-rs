@@ -33,6 +33,13 @@ impl Lox {
 
     pub fn run (&self, code: String) {
         println!("Run code: {}", code)
+        /*let mut scanner: scanner::Scanner = scanner::Scanner::new(code);
+    
+        scanner.scan_tokens();
+
+        for token in scanner.tokens {
+            println!("{}", token.lexeme)
+        }*/
     }
 }
 
