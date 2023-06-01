@@ -1,3 +1,5 @@
+use std::fs;
+
 struct Lox {
 }
 
@@ -13,11 +15,16 @@ impl Lox {
     }
 
     pub fn run_file(&self, filepath: &str) {
-        println!("Run file path: {}", filepath)
+        let code = fs::read_to_string(filepath).unwrap();
+        self.run(code);
     }
 
     pub fn run_prompt(&self) {
         println!("Run prompt")
+    }
+
+    pub fn run (&self, code: String) {
+        println!("Run code: {}", code)
     }
 }
 
