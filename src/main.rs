@@ -1,7 +1,9 @@
 use std::fs;
 use std::io;
+use std::process;
 
 struct Lox {
+    had_error: bool
 }
 
 impl Lox {
@@ -18,6 +20,9 @@ impl Lox {
     pub fn run_file(&self, filepath: &str) {
         let code = fs::read_to_string(filepath).unwrap();
         self.run(code);
+        if self.had_error {
+            process::exit(65)
+        }
     }
 
     pub fn run_prompt(&self) {
@@ -54,6 +59,8 @@ impl Lox {
 
 fn main() {
     let mut input: [&str; 1] = ["C:/Users/Mael/Documents/Temp/test.lox"];
-    let lox: Lox = Lox {};
+    let lox: Lox = Lox {
+        had_error: false
+    };
     lox.main(&mut input)
 }
