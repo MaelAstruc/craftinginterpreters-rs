@@ -58,7 +58,7 @@ impl Lox {
 }
 
 fn main() {
-    let mut input: [&str; 1] = ["C:/Users/Mael/Documents/Temp/test.lox"];
+    let mut input = ["C:/Users/Mael/Documents/Temp/test.lox"];
     let lox: Lox = Lox {
         had_error: false
     };
