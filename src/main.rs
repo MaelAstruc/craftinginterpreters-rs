@@ -2,6 +2,8 @@ use std::fs;
 use std::io;
 use std::process;
 
+pub mod token_type;
+
 struct Lox {
     had_error: bool
 }
