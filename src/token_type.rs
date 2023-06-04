@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen, RightParen, LeftBrace, RightBrace,
@@ -18,4 +19,10 @@ pub enum TokenType {
   
     Eof
   }
+
+impl std::fmt::Display for TokenType {
+  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    write!(f, "{:?}", &self)
+}
+}  
   
