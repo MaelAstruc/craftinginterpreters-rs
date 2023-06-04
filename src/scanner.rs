@@ -49,6 +49,10 @@ impl Scanner {
             '>' =>
                 if self.match_char('=') { self.add_token(TokenType::GreaterEqual, "".to_string()) }
                 else {self.add_token(TokenType::Greater, "".to_string())},
+            '/' =>
+                if self.match_char('/') { while self.peek() != '\n' && self.is_at_end() { self.advance(); } }
+                else { self.add_token(TokenType::Slash, "".to_string()) },
+    
             _ => ()
         }
     }
@@ -62,6 +66,11 @@ impl Scanner {
         }
         self.current += 1;
         return true
+    }
+
+    fn peek(&self) -> char {
+        if self.is_at_end() {return '\0'}
+        return self.source.chars().nth(self.current).unwrap()
     }
 
     fn is_at_end(&self) -> bool {
