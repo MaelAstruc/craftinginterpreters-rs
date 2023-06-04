@@ -52,7 +52,10 @@ impl Scanner {
             '/' =>
                 if self.match_char('/') { while self.peek() != '\n' && self.is_at_end() { self.advance(); } }
                 else { self.add_token(TokenType::Slash, "".to_string()) },
-    
+            ' ' => (),
+            'r' => (),
+            't' => (),
+            '\n' => self.line += 1,
             _ => ()
         }
     }
