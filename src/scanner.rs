@@ -1,5 +1,6 @@
 use crate::token::Token;
 use crate::token_type::TokenType;
+use crate::Lox;
 
 pub struct Scanner {
     pub source: String,
@@ -56,6 +57,7 @@ impl Scanner {
             'r' => (),
             't' => (),
             '\n' => self.line += 1,
+            '"' => self.string(),
             _ => ()
         }
     }
@@ -75,6 +77,20 @@ impl Scanner {
         if self.is_at_end() {return '\0'}
         return self.source.chars().nth(self.current).unwrap()
     }
+
+    fn string(&mut self) {
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' { self.line += 1}
+            self.advance();
+        }
+        if self.is_at_end() {
+            Lox::error(self.line, "Unterminated string.");
+            return;
+        }
+        self.advance();
+        let value: String = self.source[(self.start+1)..(self.current-1)].to_string();
+        self.add_token(TokenType::String, value)
+   }
 
     fn is_at_end(&self) -> bool {
         return self.current >= self.source.len();
