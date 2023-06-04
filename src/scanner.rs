@@ -25,9 +25,35 @@ impl Scanner {
     }
 
     fn scan_token(&mut self) {
+        let c: char = self.advance();
+        match c {
+          '(' => self.add_token(TokenType::LeftParen, "".to_string()),
+          ')' => self.add_token(TokenType::RightParen, "".to_string()),
+          '{' => self.add_token(TokenType::LeftBrace, "".to_string()),
+          '}' => self.add_token(TokenType::RightBrace, "".to_string()),
+          ',' => self.add_token(TokenType::Comma, "".to_string()),
+          '.' => self.add_token(TokenType::Dot, "".to_string()),
+          '-' => self.add_token(TokenType::Minus, "".to_string()),
+          '+' => self.add_token(TokenType::Plus, "".to_string()),
+          ';' => self.add_token(TokenType::SemiColon, "".to_string()),
+          '*' => self.add_token(TokenType::Star, "".to_string()),
+          _ => ()
+        }
    }
 
     fn is_at_end(&self) -> bool {
         return self.current >= self.source.len();
+    }
+
+    fn advance(&mut self) -> char {
+        let next_char: char = self.source.chars().nth(self.current).unwrap();
+        self.current  += 1;
+        return next_char
+    }
+
+    fn add_token(&mut self, types: TokenType, literal: String) {
+        let lexeme: String = self.source[self.start..self.current].to_string();
+        let new_token = Token {types, lexeme, literal, line: self.line};
+        self.tokens.push(new_token)
     }
 }
