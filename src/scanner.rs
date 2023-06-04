@@ -59,10 +59,35 @@ impl Scanner {
             '\n' => self.line += 1,
             '"' => self.string(),
             '0'..='9' => self.number(),
+            'a'..='z' | 'A'..='Z' | '_' => self.identifier(),
             _ => ()
         }
     }
 
+    fn identifier(&mut self) {
+        while self.peek().is_alphanumeric() { self.advance(); };
+        let value: String = self.source[(self.start)..(self.current)].to_string();
+        match value.as_str() {
+            "and" => self.add_token(TokenType::And, "".to_string()),
+            "class" => self.add_token(TokenType::Class, "".to_string()),
+            "else" => self.add_token(TokenType::Else, "".to_string()),
+            "false" => self.add_token(TokenType::False, "".to_string()),
+            "for" => self.add_token(TokenType::For, "".to_string()),
+            "fun" => self.add_token(TokenType::Fun, "".to_string()),
+            "if" => self.add_token(TokenType::If, "".to_string()),
+            "nil" => self.add_token(TokenType::Nil, "".to_string()),
+            "or" => self.add_token(TokenType::Or, "".to_string()),
+            "print" => self.add_token(TokenType::Print, "".to_string()),
+            "return" => self.add_token(TokenType::Return, "".to_string()),
+            "super" => self.add_token(TokenType::Super, "".to_string()),
+            "this" => self.add_token(TokenType::This, "".to_string()),
+            "true" => self.add_token(TokenType::True, "".to_string()),
+            "var" => self.add_token(TokenType::Var, "".to_string()),
+            "while" => self.add_token(TokenType::While, "".to_string()),
+            _ => ()
+        };
+      }
+    
     fn number(&mut self) {
         while self.peek().is_numeric() { self.advance(); };
         if self.peek() == '.' && self.peek_next().is_numeric() {
