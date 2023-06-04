@@ -1,13 +1,21 @@
 use crate::token::Token;
+use crate::token_type::TokenType;
 
-pub struct Scanner<T> {
+pub struct Scanner {
     pub source: String,
-    pub tokens: Vec<Token<T>>
+    pub tokens: Vec<Token>,
+    start: usize,
+    current: usize,
+    line: u32
 }
 
-impl<T> Scanner<T> {
-    pub fn new(source: String) -> Scanner<T> {
-        let tokens: Vec<Token<T>> = Vec::new();
-        Scanner {source: source, tokens: tokens}
+impl Scanner {
+    pub fn new(source: String) -> Scanner {
+        let tokens: Vec<Token> = Vec::new();
+        Scanner {source: source, tokens: tokens, start: 0, current: 0, line: 1}
+    }
+
+    fn is_at_end(&self) -> bool {
+        return self.current >= self.source.len();
     }
 }

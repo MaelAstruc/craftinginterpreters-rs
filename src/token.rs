@@ -1,14 +1,14 @@
 use crate::token_type::TokenType;
 
-pub struct Token<T> {
+pub struct Token {
     pub types: TokenType,
     pub lexeme: String,
-    pub literal: T,
+    pub literal: String,
     pub line: u32
 }
 
-impl<T: std::fmt::Display> Token<T> {
-    pub fn new(types: TokenType, lexeme: String, literal: T, line:u32) -> Token<T> {
+impl Token {
+    pub fn new(types: TokenType, lexeme: String, literal: String, line:u32) -> Token {
         Token {
             types: types,
             lexeme: lexeme,
