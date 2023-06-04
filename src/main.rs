@@ -4,6 +4,7 @@ use std::process;
 
 pub mod token_type;
 pub mod token;
+pub mod scanner;
 
 struct Lox {
     had_error: bool
