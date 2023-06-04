@@ -58,9 +58,20 @@ impl Scanner {
             't' => (),
             '\n' => self.line += 1,
             '"' => self.string(),
+            '0'..='9' => self.number(),
             _ => ()
         }
     }
+
+    fn number(&mut self) {
+        while self.peek().is_numeric() { self.advance(); };
+        if self.peek() == '.' && self.peek_next().is_numeric() {
+            self.advance();
+            while self.peek().is_numeric() { self.advance(); };
+        }
+        let value: String = self.source[(self.start)..(self.current)].to_string();
+        self.add_token(TokenType::Number, value)
+   }
 
     fn match_char(&mut self, expected: char) ->bool {
         if self.is_at_end() {
@@ -76,6 +87,11 @@ impl Scanner {
     fn peek(&self) -> char {
         if self.is_at_end() {return '\0'}
         return self.source.chars().nth(self.current).unwrap()
+    }
+
+    fn peek_next(&self) -> char {
+        if self.current + 1 >= self.source.len() { return '\0' }
+        return self.source.chars().nth(self.current + 1).unwrap()
     }
 
     fn string(&mut self) {
