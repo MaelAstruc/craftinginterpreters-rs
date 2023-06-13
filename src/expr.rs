@@ -1,14 +1,18 @@
 use crate::token::Token;
 
+pub trait Expr {}
+
 macro_rules! make_binary {
   ($name: ident, $left: ident, $operator: ident, $right: ident) => {
-    pub struct $name<T,U>  {
+    pub struct $name<T: Expr, U: Expr>  {
       pub $left: T,
       pub $operator: Token,
       pub $right: U
     }
 
-    impl<T,U>  $name<T,U>  {
+    impl<T: Expr, U: Expr> Expr for $name<T, U> {}
+
+    impl<T: Expr, U: Expr>  $name<T, U>  {
       pub fn new($left: T, $operator: Token, $right: U) -> $name<T,U> {
         $name {
           $left: $left,
@@ -22,11 +26,13 @@ macro_rules! make_binary {
 
 macro_rules! make_grouping {
   ($name: ident, $expression: ident) => {
-    pub struct $name<T>  {
+    pub struct $name<T: Expr>  {
       pub $expression: T
     }
 
-    impl<T>  $name<T>  {
+    impl<T: Expr> Expr for $name<T> {}
+
+    impl<T: Expr> $name<T>  {
       pub fn new($expression: T) -> $name<T> {
         $name {
           $expression: $expression,
@@ -42,6 +48,8 @@ macro_rules! make_literal {
       pub $value: T
     }
 
+    impl<T> Expr for $name<T> {}
+
     impl<T>  $name<T>  {
       pub fn new($value: T) -> $name<T> {
         $name {
@@ -54,12 +62,14 @@ macro_rules! make_literal {
 
 macro_rules! make_unary {
   ($name: ident, $operator: ident, $right: ident) => {
-    pub struct $name<T>  {
+    pub struct $name<T: Expr>  {
       pub $operator: Token,
       pub $right: T
     }
 
-    impl<T>  $name<T>  {
+    impl<T: Expr> Expr for $name<T> {}
+
+    impl<T: Expr>  $name<T>  {
       pub fn new($operator: Token, $right: T) -> $name<T> {
         $name {
           $operator: $operator,
