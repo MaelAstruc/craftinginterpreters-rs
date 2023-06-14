@@ -1,6 +1,8 @@
+use std::fmt::{Display, Formatter, Result};
+
 use crate::token::Token;
 
-pub trait Expr {}
+pub trait Expr { }
 
 macro_rules! make_binary {
   ($name: ident, $left: ident, $operator: ident, $right: ident) => {
@@ -10,7 +12,13 @@ macro_rules! make_binary {
       pub $right: U
     }
 
-    impl<T: Expr, U: Expr> Expr for $name<T, U> {}
+    impl<T: Expr, U: Expr> Expr for $name<T, U> { }
+
+    impl<T: Expr + Display, U: Expr + Display>  Display for $name<T, U> {
+      fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "({} {} {})", &self.$operator.lexeme, &self.$left,  &self.$right)
+      }
+    }
 
     impl<T: Expr, U: Expr>  $name<T, U>  {
       pub fn new($left: T, $operator: Token, $right: U) -> $name<T,U> {
@@ -32,6 +40,12 @@ macro_rules! make_grouping {
 
     impl<T: Expr> Expr for $name<T> {}
 
+    impl<T: Expr + Display>  Display for $name<T> {
+      fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "(group {})", &self.$expression)
+      }
+    }
+
     impl<T: Expr> $name<T>  {
       pub fn new($expression: T) -> $name<T> {
         $name {
@@ -49,6 +63,12 @@ macro_rules! make_literal {
     }
 
     impl<T> Expr for $name<T> {}
+
+    impl<T: Display>  Display for $name<T> {
+      fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}", &self.$value)
+      }
+    }
 
     impl<T>  $name<T>  {
       pub fn new($value: T) -> $name<T> {
@@ -68,6 +88,12 @@ macro_rules! make_unary {
     }
 
     impl<T: Expr> Expr for $name<T> {}
+
+    impl<T: Expr + Display>  Display for $name<T> {
+      fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "({} {})", &self.$operator.lexeme, &self.$right)
+      }
+    }
 
     impl<T: Expr>  $name<T>  {
       pub fn new($operator: Token, $right: T) -> $name<T> {
