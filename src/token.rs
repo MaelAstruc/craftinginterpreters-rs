@@ -3,12 +3,12 @@ use crate::token_type::TokenType;
 pub struct Token {
     pub types: TokenType,
     pub lexeme: String,
-    pub literal: String,
+    pub literal: Option<String>,
     pub line: u32
 }
 
 impl Token {
-    pub fn new(types: TokenType, lexeme: String, literal: String, line:u32) -> Token {
+    pub fn new(types: TokenType, lexeme: String, literal: Option<String>, line:u32) -> Token {
         Token {
             types: types,
             lexeme: lexeme,
@@ -18,6 +18,6 @@ impl Token {
     }
 
     pub fn to_string(&self) -> String {
-        format!("{} {} {}", &self.types, &self.lexeme, &self.literal)
+        format!("{} {} {:#?}", &self.types, &self.lexeme, &self.literal)
     }
 }
