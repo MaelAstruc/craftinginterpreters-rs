@@ -2,9 +2,16 @@ use std::fs;
 use std::io;
 use std::process;
 
+pub mod expr;
 pub mod token_type;
 pub mod token;
+pub mod parser;
 pub mod scanner;
+
+use crate::scanner::Scanner;
+use crate::token::Token;
+use crate::token_type::TokenType;
+use crate::parser::Parser;
 
 struct Lox {
     had_error: bool
@@ -41,18 +48,27 @@ impl Lox {
     }
 
     pub fn run(&self, code: String) {
-        println!("Run code: {}", code)
-        /*let mut scanner: scanner::Scanner = scanner::Scanner::new(code);
-    
+        let mut scanner: Scanner = Scanner::new(code);
         scanner.scan_tokens();
 
-        for token in scanner.tokens {
-            println!("{}", token.lexeme)
-        }*/
+        let mut parser = Parser::new(scanner.tokens);
+        let expression = parser.parse();
+
+        println!("{}", expression)
     }
 
     fn error(line: u32, message: &str) {
         Self::report(line, "", message)
+    }
+
+    fn error_token(token: &Token, message: &str) {
+        if token.types == TokenType::Eof {
+            Self::report(token.line, " at the end", &message)
+        }
+        else {
+            let at: String = " at'".to_owned() + token.lexeme.as_ref() + "'";
+            Self::report(token.line, at.as_str(), &message)
+        }
     }
 
     fn report(line: u32, at: &str, message: &str) {
