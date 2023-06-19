@@ -21,25 +21,25 @@ impl Clone for Box<dyn Expr> {
 macro_rules! make_binary {
   ($name: ident, $left: ident, $operator: ident, $right: ident) => {
     #[derive(Clone)]
-    pub struct $name<T: Expr, U: Expr>  {
+    pub struct $name<T: Expr, U: Expr> {
       pub $left: T,
       pub $operator: Token,
       pub $right: U
     }
 
     impl<T: Expr + Clone + 'static, U: Expr + Clone + 'static> Expr for $name<T, U> {
-      fn box_clone(&self) ->  Option<Box<dyn Expr>> {
+      fn box_clone(&self) -> Option<Box<dyn Expr>> {
         Some(Box::new((*self).clone()))
       }
     }
 
-    impl<T: Expr + Display, U: Expr + Display>  Display for $name<T, U> {
+    impl<T: Expr + Display, U: Expr + Display> Display for $name<T, U> {
       fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "({} {} {})", &self.$operator.lexeme, &self.$left,  &self.$right)
+        write!(f, "({} {} {})", &self.$operator.lexeme, &self.$left, &self.$right)
       }
     }
 
-    impl<T: Expr, U: Expr>  $name<T, U>  {
+    impl<T: Expr, U: Expr> $name<T, U> {
       pub fn new($left: T, $operator: Token, $right: U) -> $name<T,U> {
         $name {
           $left: $left,
@@ -54,7 +54,7 @@ macro_rules! make_binary {
 macro_rules! make_grouping {
   ($name: ident, $expression: ident) => {
     #[derive(Clone)]
-    pub struct $name<T: Expr>  {
+    pub struct $name<T: Expr> {
       pub $expression: T
     }
 
@@ -64,13 +64,13 @@ macro_rules! make_grouping {
       }
     }
 
-    impl<T: Expr + Display>  Display for $name<T> {
+    impl<T: Expr + Display> Display for $name<T> {
       fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "(group {})", &self.$expression)
       }
     }
 
-    impl<T: Expr> $name<T>  {
+    impl<T: Expr> $name<T> {
       pub fn new($expression: T) -> $name<T> {
         $name {
           $expression: $expression,
@@ -93,7 +93,7 @@ macro_rules! make_literal {
       }
     }
 
-    impl<T: Display>  Display for $name<T> {
+    impl<T: Display> Display for $name<T> {
       fn fmt(&self, f: &mut Formatter) -> Result {
         match &self.$value {
           Some(x) => write!(f, "{}", x),
@@ -102,7 +102,7 @@ macro_rules! make_literal {
       }
     }
 
-    impl<T>  $name<T>  {
+    impl<T> $name<T> {
       pub fn new($value: Option<T>) -> $name<T> {
         $name {
           $value: $value,
@@ -115,7 +115,7 @@ macro_rules! make_literal {
 macro_rules! make_unary {
   ($name: ident, $operator: ident, $right: ident) => {
     #[derive(Clone)]
-    pub struct $name<T: Expr>  {
+    pub struct $name<T: Expr> {
       pub $operator: Token,
       pub $right: T
     }
@@ -126,13 +126,13 @@ macro_rules! make_unary {
       }
     }
 
-    impl<T: Expr + Display>  Display for $name<T> {
+    impl<T: Expr + Display> Display for $name<T> {
       fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "({} {})", &self.$operator.lexeme, &self.$right)
       }
     }
 
-    impl<T: Expr>  $name<T>  {
+    impl<T: Expr> $name<T> {
       pub fn new($operator: Token, $right: T) -> $name<T> {
         $name {
           $operator: $operator,
