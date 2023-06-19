@@ -19,6 +19,9 @@ impl Token {
     }
 
     pub fn to_string(&self) -> String {
-        format!("{} {} {:#?}", &self.types, &self.lexeme, &self.literal)
+        match &self.literal {
+          Some(x) => format!("{} {} {}", &self.types, &self.lexeme, x),
+          None => format!("{} {} None", &self.types, &self.lexeme)
+        }
     }
 }
