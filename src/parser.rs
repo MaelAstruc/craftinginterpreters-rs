@@ -92,12 +92,12 @@ impl Parser {
             return Box::new(Grouping {expression: expr})
         }
         else {
-            panic!("{}", &self.peek().types)
+            panic!("{}", &self.peek().token_type)
         }
     }
 
-    pub fn match_token(&mut self, types: &[TokenType]) -> bool {
-        for token_type in types {
+    pub fn match_token(&mut self, token_type: &[TokenType]) -> bool {
+        for token_type in token_type {
             if self.check(token_type) {
                 self.advance();
                 return true
@@ -110,7 +110,7 @@ impl Parser {
         if self.is_at_end() {
             return false;
         }
-        &self.peek().types == token_type
+        &self.peek().token_type == token_type
     }
 
     pub fn advance(&mut self) -> &Token {
@@ -121,7 +121,7 @@ impl Parser {
     }
 
     pub fn is_at_end(&self) -> bool {
-        self.peek().types == TokenType::Eof
+        self.peek().token_type == TokenType::Eof
     }
 
     pub fn peek(&self) -> &Token {
@@ -150,10 +150,10 @@ impl Parser {
         self.advance();
 
         while !self.is_at_end() {
-            if self.previous().types == TokenType::SemiColon {
+            if self.previous().token_type == TokenType::SemiColon {
                 return;
             }
-            match self.peek().types {
+            match self.peek().token_type {
                 TokenType::Class => (),
                 TokenType::Fun => (),
                 TokenType::Var => (),

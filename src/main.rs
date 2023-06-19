@@ -62,7 +62,7 @@ impl Lox {
     }
 
     fn error_token(token: &Token, message: &str) {
-        if token.types == TokenType::Eof {
+        if token.token_type == TokenType::Eof {
             Self::report(token.line, " at the end", &message)
         }
         else {

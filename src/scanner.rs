@@ -143,9 +143,9 @@ impl Scanner {
         return next_char
     }
 
-    fn add_token(&mut self, types: TokenType, literal: Option<String>) {
+    fn add_token(&mut self, token_type: TokenType, literal: Option<String>) {
         let lexeme: String = self.source[self.start..self.current].to_string();
-        let new_token: Token = Token {types, lexeme, literal: literal, line: self.line};
+        let new_token: Token = Token {token_type, lexeme, literal: literal, line: self.line};
         self.tokens.push(new_token)
     }
 }
