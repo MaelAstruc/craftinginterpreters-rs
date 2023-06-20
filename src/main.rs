@@ -84,3 +84,66 @@ fn main() {
     };
     lox.main(&mut input)
 }
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn print_token_type() {
+        assert_eq!(TokenType::And.to_string(), "And")
+    }
+
+    #[test]
+    fn print_token() {
+        let token: Token = Token::new(
+            TokenType::String("String".into()),
+            "lexeme".to_string(),
+            1);
+        assert_eq!(token.to_string(), "String lexeme String");
+        let token: Token = Token::new(
+            TokenType::And,
+            "and".to_string(),
+            1);
+        assert_eq!(token.to_string(), "And and And");
+    }
+
+    #[test]
+    fn scan_short_tokens() {
+        let code: &str = "=+(){},;>";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+        
+        let tokens: Vec<TokenType> = vec![
+            TokenType::Equal,
+            TokenType::Plus,
+            TokenType::LeftParen,
+            TokenType::RightParen,
+            TokenType::LeftBrace,
+            TokenType::RightBrace,
+            TokenType::Comma,
+            TokenType::SemiColon,
+            TokenType::Greater
+        ];
+        for i in 0..tokens.len() {
+            assert_eq!(scanner.tokens[i].token_type, tokens[i]);
+        }
+    }
+
+    #[test]
+    fn parse_short_expr() {
+        let code: &str = "// Test
+            2 + 3 * 5 / (1 + 2) > 7";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let expression: &str = "(> (+ 2 (/ (* 3 5) (group (+ 1 2)))) 7)";
+
+        assert_eq!(parser.parse().to_string(), expression);
+    }
+
+
+}
