@@ -11,6 +11,7 @@ pub mod scanner;
 use crate::scanner::Scanner;
 use crate::token::Token;
 use crate::token_type::TokenType;
+use crate::expr::Expr;
 use crate::parser::Parser;
 
 struct Lox {
@@ -29,7 +30,7 @@ impl Lox {
     }
 
     pub fn run_file(&self, filepath: &str) {
-        let code = fs::read_to_string(filepath).unwrap();
+        let code: String = fs::read_to_string(filepath).unwrap();
         self.run(code);
         if self.had_error {
             process::exit(65)
@@ -51,8 +52,8 @@ impl Lox {
         let mut scanner: Scanner = Scanner::new(code);
         scanner.scan_tokens();
 
-        let mut parser = Parser::new(scanner.tokens);
-        let expression = parser.parse();
+        let mut parser: Parser = Parser::new(scanner.tokens);
+        let expression: Box<dyn Expr> = parser.parse();
 
         println!("{}", expression)
     }
@@ -87,7 +88,6 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
