@@ -2,36 +2,19 @@ use std::fmt::{Display, Formatter, Result};
 
 use crate::token::Token;
 
-pub trait Expr: Display {
-  fn box_clone(&self) -> Option<Box<dyn Expr>>;
-}
+pub trait Expr: Display {}
 
-impl Expr for Box<dyn Expr> {
-  fn box_clone(&self) -> Option<Box<dyn Expr>> {
-    None
-  }
-}
-
-impl Clone for Box<dyn Expr> {
-  fn clone(&self) -> Box<dyn Expr> {
-    self.box_clone().unwrap()
-  }
-}
+impl Expr for Box<dyn Expr> {}
 
 macro_rules! make_binary {
   ($name: ident, $left: ident, $operator: ident, $right: ident) => {
-    #[derive(Clone)]
     pub struct $name<T: Expr, U: Expr> {
       pub $left: T,
       pub $operator: Token,
       pub $right: U
     }
 
-    impl<T: Expr + Clone + 'static, U: Expr + Clone + 'static> Expr for $name<T, U> {
-      fn box_clone(&self) -> Option<Box<dyn Expr>> {
-        Some(Box::new((*self).clone()))
-      }
-    }
+    impl<T: Expr, U: Expr> Expr for $name<T, U> { }
 
     impl<T: Expr + Display, U: Expr + Display> Display for $name<T, U> {
       fn fmt(&self, f: &mut Formatter) -> Result {
@@ -53,16 +36,11 @@ macro_rules! make_binary {
 
 macro_rules! make_grouping {
   ($name: ident, $expression: ident) => {
-    #[derive(Clone)]
     pub struct $name<T: Expr> {
       pub $expression: T
     }
 
-    impl<T: Expr + Clone + 'static> Expr for $name<T> {
-      fn box_clone(&self) -> Option<Box<dyn Expr>> {
-        Some(Box::new((*self).clone()))
-      }
-    }
+    impl<T: Expr> Expr for $name<T> { }
 
     impl<T: Expr + Display> Display for $name<T> {
       fn fmt(&self, f: &mut Formatter) -> Result {
@@ -82,16 +60,11 @@ macro_rules! make_grouping {
 
 macro_rules! make_literal {
   ($name: ident, $value: ident) => {
-    #[derive(Clone)]
     pub struct $name<T> {
       pub $value: Option<T>
     }
 
-    impl<T: Clone + Display + 'static> Expr for $name<T> {
-      fn box_clone(&self) -> Option<Box<dyn Expr>> {
-        Some(Box::new((*self).clone()))
-      }
-    }
+    impl<T: Display> Expr for $name<T> {  }
 
     impl<T: Display> Display for $name<T> {
       fn fmt(&self, f: &mut Formatter) -> Result {
@@ -114,17 +87,12 @@ macro_rules! make_literal {
 
 macro_rules! make_unary {
   ($name: ident, $operator: ident, $right: ident) => {
-    #[derive(Clone)]
     pub struct $name<T: Expr> {
       pub $operator: Token,
       pub $right: T
     }
 
-    impl<T: Expr + Clone + 'static> Expr for $name<T> {
-      fn box_clone(&self) -> Option<Box<dyn Expr>> {
-        Some(Box::new((*self).clone()))
-      }
-    }
+    impl<T: Expr> Expr for $name<T> { }
 
     impl<T: Expr + Display> Display for $name<T> {
       fn fmt(&self, f: &mut Formatter) -> Result {
