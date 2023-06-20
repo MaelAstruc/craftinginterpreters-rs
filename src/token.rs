@@ -15,13 +15,15 @@ impl Token {
             line: line
         }
     }
+}
 
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self.token_type {
-            TokenType::Identifier(x) => format!("{} {} {}", &self.token_type, &self.lexeme, x),
-            TokenType::String(x) => format!("{} {} {}", &self.token_type, &self.lexeme, x),
-            TokenType::Number(x) => format!("{} {} {}", &self.token_type, &self.lexeme, x),
-            _ => format!("{} {} {}", &self.token_type, &self.lexeme, &self.token_type),
+            TokenType::Identifier(x) => write!(f, "{} {} {}", &self.token_type, &self.lexeme, x),
+            TokenType::String(x) => write!(f, "{} {} {}", &self.token_type, &self.lexeme, x),
+            TokenType::Number(x) => write!(f, "{} {} {}", &self.token_type, &self.lexeme, x),
+            _ => write!(f, "{} {} {}", &self.token_type, &self.lexeme, &self.token_type)
         }
-    }
+      }
 }
