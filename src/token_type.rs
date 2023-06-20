@@ -11,7 +11,7 @@ pub enum TokenType {
     Less, LessEqual,
   
     // Literals.
-    Identifier, String, Number,
+    Identifier(String), String(String), Number(String),
   
     // Keywords.
     And, Class, Else, False, Fun, For, If, Nil, Or,
@@ -22,7 +22,12 @@ pub enum TokenType {
 
 impl std::fmt::Display for TokenType {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-    write!(f, "{:?}", &self)
+    match &self {
+      Self::Identifier(x) => write!(f, "{}", x),
+      Self::Number(x) => write!(f, "{}", x),
+      Self::String(x) => write!(f, "{}", x),
+      _ => write!(f, "{:?}", &self)
+    }
   }
 }  
   

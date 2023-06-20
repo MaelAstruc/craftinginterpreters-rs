@@ -21,38 +21,38 @@ impl Scanner {
             self.start = self.current;
             self.scan_token();
         }
-        let last_token = Token::new(TokenType::Eof, "".to_string(), None, self.line);
+        let last_token = Token::new(TokenType::Eof, "".to_string(), self.line);
         self.tokens.push(last_token);
     }
 
     fn scan_token(&mut self) {
         let c: char = self.advance();
         match c {
-            '(' => self.add_token(TokenType::LeftParen, None),
-            ')' => self.add_token(TokenType::RightParen, None),
-            '{' => self.add_token(TokenType::LeftBrace, None),
-            '}' => self.add_token(TokenType::RightBrace, None),
-            ',' => self.add_token(TokenType::Comma, None),
-            '.' => self.add_token(TokenType::Dot, None),
-            '-' => self.add_token(TokenType::Minus, None),
-            '+' => self.add_token(TokenType::Plus, None),
-            ';' => self.add_token(TokenType::SemiColon, None),
-            '*' => self.add_token(TokenType::Star, None),
+            '(' => self.add_token(TokenType::LeftParen),
+            ')' => self.add_token(TokenType::RightParen),
+            '{' => self.add_token(TokenType::LeftBrace),
+            '}' => self.add_token(TokenType::RightBrace),
+            ',' => self.add_token(TokenType::Comma),
+            '.' => self.add_token(TokenType::Dot),
+            '-' => self.add_token(TokenType::Minus),
+            '+' => self.add_token(TokenType::Plus),
+            ';' => self.add_token(TokenType::SemiColon),
+            '*' => self.add_token(TokenType::Star),
             '!' =>
-                if self.match_char('=') {self.add_token(TokenType::BangEqual, None) }
-                else {self.add_token(TokenType::Bang, None)},
+                if self.match_char('=') {self.add_token(TokenType::BangEqual) }
+                else {self.add_token(TokenType::Bang)},
             '=' =>
-                if self.match_char('=') { self.add_token(TokenType::EqualEqual, None) }
-                else {self.add_token(TokenType::Equal, None)},
+                if self.match_char('=') { self.add_token(TokenType::EqualEqual) }
+                else {self.add_token(TokenType::Equal)},
             '<' =>
-                if self.match_char('=') { self.add_token(TokenType::LessEqual, None) }
-                else {self.add_token(TokenType::Less, None)},
+                if self.match_char('=') { self.add_token(TokenType::LessEqual) }
+                else {self.add_token(TokenType::Less)},
             '>' =>
-                if self.match_char('=') { self.add_token(TokenType::GreaterEqual, None) }
-                else {self.add_token(TokenType::Greater, None)},
+                if self.match_char('=') { self.add_token(TokenType::GreaterEqual) }
+                else {self.add_token(TokenType::Greater)},
             '/' =>
                 if self.match_char('/') { while self.peek() != '\n' && self.is_at_end() { self.advance(); } }
-                else { self.add_token(TokenType::Slash, None) },
+                else { self.add_token(TokenType::Slash) },
             ' ' => (),
             'r' => (),
             't' => (),
@@ -68,22 +68,22 @@ impl Scanner {
         while self.peek().is_alphanumeric() { self.advance(); };
         let value: String = self.source[(self.start)..(self.current)].to_string();
         match value.as_str() {
-            "and" => self.add_token(TokenType::And, None),
-            "class" => self.add_token(TokenType::Class, None),
-            "else" => self.add_token(TokenType::Else, None),
-            "false" => self.add_token(TokenType::False, None),
-            "for" => self.add_token(TokenType::For, None),
-            "fun" => self.add_token(TokenType::Fun, None),
-            "if" => self.add_token(TokenType::If, None),
-            "nil" => self.add_token(TokenType::Nil, None),
-            "or" => self.add_token(TokenType::Or, None),
-            "print" => self.add_token(TokenType::Print, None),
-            "return" => self.add_token(TokenType::Return, None),
-            "super" => self.add_token(TokenType::Super, None),
-            "this" => self.add_token(TokenType::This, None),
-            "true" => self.add_token(TokenType::True, None),
-            "var" => self.add_token(TokenType::Var, None),
-            "while" => self.add_token(TokenType::While, None),
+            "and" => self.add_token(TokenType::And),
+            "class" => self.add_token(TokenType::Class),
+            "else" => self.add_token(TokenType::Else),
+            "false" => self.add_token(TokenType::False),
+            "for" => self.add_token(TokenType::For),
+            "fun" => self.add_token(TokenType::Fun),
+            "if" => self.add_token(TokenType::If),
+            "nil" => self.add_token(TokenType::Nil),
+            "or" => self.add_token(TokenType::Or),
+            "print" => self.add_token(TokenType::Print),
+            "return" => self.add_token(TokenType::Return),
+            "super" => self.add_token(TokenType::Super),
+            "this" => self.add_token(TokenType::This),
+            "true" => self.add_token(TokenType::True),
+            "var" => self.add_token(TokenType::Var),
+            "while" => self.add_token(TokenType::While),
             _ => ()
         };
       }
@@ -95,7 +95,7 @@ impl Scanner {
             while self.peek().is_numeric() { self.advance(); };
         }
         let value: String = self.source[(self.start)..(self.current)].to_string();
-        self.add_token(TokenType::Number, Some(value))
+        self.add_token(TokenType::Number(value))
    }
 
     fn match_char(&mut self, expected: char) ->bool {
@@ -130,7 +130,7 @@ impl Scanner {
         }
         self.advance();
         let value: String = self.source[(self.start+1)..(self.current-1)].to_string();
-        self.add_token(TokenType::String, Some(value))
+        self.add_token(TokenType::String(value))
    }
 
     fn is_at_end(&self) -> bool {
@@ -143,9 +143,9 @@ impl Scanner {
         return next_char
     }
 
-    fn add_token(&mut self, token_type: TokenType, literal: Option<String>) {
+    fn add_token(&mut self, token_type: TokenType) {
         let lexeme: String = self.source[self.start..self.current].to_string();
-        let new_token: Token = Token {token_type, lexeme, literal: literal, line: self.line};
+        let new_token: Token = Token {token_type, lexeme, line: self.line};
         self.tokens.push(new_token)
     }
 }

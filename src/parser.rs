@@ -24,86 +24,114 @@ impl Parser {
     }
 
     pub fn equality(&mut self) -> Box<dyn Expr> {
-        let mut expr = self.comparison();
-        while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
-            let operator: Token = self.previous().clone();
-            let right = self.comparison();
-            expr = Box::new(Binary {left: expr, operator, right});
+        let mut expr: Box<dyn Expr> = self.comparison();
+        loop {
+            let token: &Token = self.peek();
+            match &token.token_type {
+                TokenType::BangEqual | TokenType::EqualEqual => {
+                    let operator: Token = token.clone();
+                    self.advance();
+                    let right: Box<dyn Expr> = self.comparison();
+                    expr = Box::new(Binary {left: expr, operator, right});
+                },
+                TokenType::Eof | _ => break
+            }
         }
         return expr
     }
 
     pub fn comparison(&mut self) -> Box<dyn Expr> {
-        let mut expr = self.term();
-
-        while self.match_token(&[TokenType::Greater, TokenType::GreaterEqual, TokenType:: Less, TokenType::LessEqual]) {
-            let operator: Token = self.previous().clone();
-            let right = self.term();
-            expr = Box::new(Binary {left: expr, operator, right});
+        let mut expr: Box<dyn Expr> = self.term();
+        loop {
+            let token: &Token = self.peek();
+            match &token.token_type {
+                &TokenType::Greater | &TokenType::GreaterEqual | &TokenType::Less | &TokenType::LessEqual => {
+                    let operator: Token = token.clone();
+                    self.advance();
+                    let right: Box<dyn Expr> = self.term();
+                    expr = Box::new(Binary {left: expr, operator, right});
+                },
+                TokenType::Eof | _ => break
+            }
         }
-    return expr
+        return expr
     }
 
     pub fn term(&mut self) -> Box<dyn Expr> {
-        let mut expr = self.factor();
-        while self.match_token(&[TokenType::Minus, TokenType::Plus]) {
-            let operator: Token = self.previous().clone();
-            let right = self.factor();
-            expr = Box::new(Binary {left: expr, operator, right});
+        let mut expr: Box<dyn Expr> = self.factor();
+        loop {
+            let token: &Token = self.peek();
+            match &token.token_type {
+                &TokenType::Minus | &TokenType::Plus => {
+                    let operator: Token = token.clone();
+                    self.advance();
+                    let right: Box<dyn Expr> = self.factor();
+                    expr = Box::new(Binary {left: expr, operator, right});
+                },
+                TokenType::Eof | _ => break
+            }
         }
     return expr
     }
 
     pub fn factor(&mut self) -> Box<dyn Expr> {
-        let mut expr = self.unary();
-        while self.match_token(&[TokenType::Slash, TokenType::Star]) {
-            let operator: Token = self.previous().clone();
-            let right = self.unary();
-            expr = Box::new(Binary {left: expr, operator, right});
+        let mut expr: Box<dyn Expr> = self.unary();
+        loop {
+            let token: &Token = self.peek();
+            match &token.token_type {
+                TokenType::Slash | TokenType::Star => {
+                    let operator: Token = token.clone();
+                    self.advance();
+                    let right: Box<dyn Expr> = self.unary();
+                    expr = Box::new(Binary {left: expr, operator, right});
+                },
+                TokenType::Eof | _ => break
+            }
         }
-    return expr
+        return expr
     }
     
     pub fn unary(&mut self) -> Box<dyn Expr> {
-        if self.match_token(&[TokenType::Bang, TokenType::Minus]) {
-            let operator: Token = self.previous().clone();
-            let right = self.unary();
-            return Box::new(Unary {operator, right});
+        let token: &Token = self.peek();
+        match &token.token_type {
+            TokenType::Bang | TokenType::Minus => {
+                let operator: Token = token.clone();
+                self.advance();
+                let right: Box<dyn Expr> = self.unary();
+                return Box::new(Unary {operator, right});
+            },
+            TokenType::Eof | _ => return self.primary(),
         }
-        return self.primary()
     }
 
     pub fn primary(&mut self) -> Box<dyn Expr> {
-        if self.match_token(&[TokenType::False]) {
-            return Box::new(Literal {value: Some(false)})
-        }
-        if self.match_token(&[TokenType::True]) {
-            return Box::new(Literal {value: Some(true)})
-        }
-        if self.match_token(&[TokenType::Nil]) {
-            return Box::new(Literal {value: None::<u8>})
-        }
-        if self.match_token(&[TokenType::Number, TokenType::String]) {
-            return Box::new(Literal {value: self.previous().literal.clone()})
-        }
-        if self.match_token(&[TokenType::LeftParen]) {
-            let expr = self.expression();
-            self.consume(&TokenType::RightParen, "Expect ')' after expression.");
-            return Box::new(Grouping {expression: expr})
-        }
-        else {
-            panic!("{}", &self.peek().token_type)
-        }
-    }
-
-    pub fn match_token(&mut self, token_type: &[TokenType]) -> bool {
-        for token_type in token_type {
-            if self.check(token_type) {
+        let token: &Token = self.peek();
+        match &token.token_type {
+            TokenType::False => {
                 self.advance();
-                return true
-            }
+                return Box::new(Literal {value: Some(false)})
+                },
+            TokenType::True => {
+                self.advance();
+                return Box::new(Literal {value: Some(true)})
+                },
+            TokenType::Nil => {
+                self.advance();
+                return Box::new(Literal {value: None::<u8>})
+                },
+            TokenType::Number(x) | TokenType::String(x) => {
+                let value: Option<String> = Some(x.clone());
+                self.advance();
+                return Box::new(Literal {value: value})
+                },
+            TokenType::LeftParen => {
+                self.advance();
+                let expression: Box<dyn Expr> = self.expression();
+                self.consume(&TokenType::RightParen, "Expect ')' after expression.");
+                return Box::new(Grouping {expression})
+                },
+            TokenType::Eof | _ => panic!("{}", &self.peek().token_type)
         }
-        return false
     }
 
     pub fn check(&self, token_type: &TokenType) -> bool {
