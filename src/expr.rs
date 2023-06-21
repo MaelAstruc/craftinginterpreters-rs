@@ -3,10 +3,10 @@ use std::fmt::{Display, Formatter, Result};
 use crate::token::Token;
 use crate::token_type::TokenType;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Value {
   Bool(bool),
-  I32(i32),
+  F32(f32),
   String(String),
   None(Option<u8>)
 }
@@ -15,7 +15,7 @@ impl std::fmt::Display for Value {
   fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     match &self {
       Self::Bool(x) => write!(f, "{}", x),
-      Self::I32(x) => write!(f, "{}", x),
+      Self::F32(x) => write!(f, "{}", x),
       Self::String(x) => write!(f, "{}", x),
       Self::None(_) => write!(f, "{}", "None")
     }
@@ -161,7 +161,7 @@ impl<T: Expr> Expr for Unary<T> {
     match self.operator.token_type {
       TokenType::Minus => {
         match value {
-          Some(Value::I32(x)) => Some(Value::I32(-x)),
+          Some(Value::F32(x)) => Some(Value::F32(-x)),
           Some(_) => None,
           None => None
           }

@@ -95,7 +95,8 @@ impl Scanner {
             while self.peek().is_numeric() { self.advance(); };
         }
         let value: String = self.source[(self.start)..(self.current)].to_string();
-        self.add_token(TokenType::Number(value))
+        let float: f32 = value.parse::<f32>().unwrap();
+        self.add_token(TokenType::Number(float))
    }
 
     fn match_char(&mut self, expected: char) -> bool {

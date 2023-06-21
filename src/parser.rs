@@ -119,10 +119,15 @@ impl Parser {
                 self.advance();
                 return Box::new(Literal {value: Some(Value::None(None::<u8>))})
                 },
-            TokenType::Number(x) | TokenType::String(x) => {
+            TokenType::String(x) => {
                 let value: String = x.clone();
                 self.advance();
                 return Box::new(Literal {value: Some(Value::String(value))})
+                },
+            TokenType::Number(x) => {
+                let value: f32 = x.clone();
+                self.advance();
+                return Box::new(Literal {value: Some(Value::F32(value))})
                 },
             TokenType::LeftParen => {
                 self.advance();
