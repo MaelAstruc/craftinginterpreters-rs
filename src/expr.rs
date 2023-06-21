@@ -133,7 +133,74 @@ make_binary!(Binary, left, operator, right);
 
 impl<T: Expr, U: Expr> Expr for Binary<T, U> {
   fn evaluate(&self) -> Option<Value> {
-    Some(Value::Bool(true))
+    let left: Option<Value> = self.left.evaluate();
+    let right: Option<Value> = self.right.evaluate();
+    match self.operator.token_type {
+      TokenType::Minus => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) => Some(Value::F32(x-y)),
+          (_, _) => None
+        }
+      },
+      TokenType::Plus => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::F32(x+y)),
+          (Some(Value::String(x)), Some(Value::String(y))) =>
+            Some(Value::String(x+&y)),
+          (_, _) => None
+        }
+      },
+      TokenType::Slash => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::F32(x/y)),
+          (_, _) => None
+        }
+      },
+      TokenType::Star => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::F32(x*y)),
+          (_, _) => None
+        }
+      },
+      TokenType::Greater => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::Bool(x>y)),
+          (_, _) => None
+        }
+      },
+      TokenType::GreaterEqual => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::Bool(x>=y)),
+          (_, _) => None
+        }
+      },
+      TokenType::Less => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::Bool(x<y)),
+          (_, _) => None
+        }
+      },
+      TokenType::LessEqual => {
+        match (left, right) {
+          (Some(Value::F32(x)), Some(Value::F32(y))) =>
+            Some(Value::Bool(x<=y)),
+          (_, _) => None
+        }
+      },
+      TokenType::EqualEqual => {
+        Some(Value::Bool(check_equal(left, right)))
+      },
+      TokenType::BangEqual => {
+        Some(Value::Bool(!check_equal(left, right)))
+      },
+      _ => None
+    }
   }
 }
 
@@ -167,7 +234,7 @@ impl<T: Expr> Expr for Unary<T> {
           }
         },
       TokenType::Bang => Some(Value::Bool(!check_bool(value))),
-      _ => Some(Value::Bool(true))
+      _ => None
     }
   }
 }
@@ -177,5 +244,17 @@ fn check_bool(value: Option<Value>) -> bool {
     Some(Value::Bool(x)) => x,
     Some(_) => true,
     None => true
+  }
+}
+
+fn check_equal(left: Option<Value>, right: Option<Value>) -> bool {
+  match (left, right) {
+    (Some(Value::F32(x)), Some(Value::F32(y))) => x==y,
+    (Some(Value::String(x)), Some(Value::String(y))) => x==y,
+    (Some(Value::Bool(x)), Some(Value::Bool(y))) => x==y,
+    (Some(Value::None(_)), Some(Value::None(_))) => true,
+    (None, _) => panic!(),
+    (_, None) => panic!(),
+    (_, _) => false,
   }
 }
