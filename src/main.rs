@@ -89,6 +89,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use expr::Value;
 
     #[test]
     fn print_token_type() {
@@ -145,5 +146,93 @@ mod tests {
         assert_eq!(parser.parse().to_string(), expression);
     }
 
+    #[test]
+    fn evaluate_bang_true() {
+        let code: &str = "!true";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
 
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::Bool(false);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+    
+    #[test]
+    fn evaluate_bangbang_true() {
+        let code: &str = "!!true";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::Bool(true);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn evaluate_bangbangbang_true() {
+        let code: &str = "!!!true";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::Bool(false);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn evaluate_float() {
+        let code: &str = "1.37";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::F32(1.37);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+    
+    #[test]
+    fn evaluate_minus_one() {
+        let code: &str = "-1";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::F32(-1.0);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn evaluate_minusminus_one() {
+        let code: &str = "--1";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::F32(1.0);
+
+        assert_eq!(result.unwrap(), expected);
+    }
 }
