@@ -166,14 +166,16 @@ impl<T: Expr> Expr for Unary<T> {
           None => None
           }
         },
-      TokenType::Bang => {
-        match value {
-          Some(Value::Bool(x)) => Some(Value::Bool(!x)),
-          Some(_) => None,
-          None => None
-          }
-        },
+      TokenType::Bang => Some(Value::Bool(!check_bool(value))),
       _ => Some(Value::Bool(true))
     }
+  }
+}
+
+fn check_bool(value: Option<Value>) -> bool {
+  match value {
+    Some(Value::Bool(x)) => x,
+    Some(_) => true,
+    None => true
   }
 }

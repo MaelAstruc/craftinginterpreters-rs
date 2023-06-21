@@ -111,6 +111,34 @@ mod tests {
     }
 
     #[test]
+    fn scan_words() {
+        let code: &str = "\"Hello World !\"";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+        
+        let tokens: Vec<TokenType> = vec![
+            TokenType::String("Hello World !".into())
+        ];
+        for i in 0..tokens.len() {
+            assert_eq!(scanner.tokens[i].token_type, tokens[i]);
+        }
+    }
+
+    #[test]
+    fn scan_nil() {
+        let code: &str = "nil";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+        
+        let tokens: Vec<TokenType> = vec![
+            TokenType::Nil
+        ];
+        for i in 0..tokens.len() {
+            assert_eq!(scanner.tokens[i].token_type, tokens[i]);
+        }
+    }
+
+    #[test]
     fn scan_short_tokens() {
         let code: &str = "=+(){},;>";
         let mut scanner : Scanner = Scanner::new(code.into());
@@ -144,6 +172,21 @@ mod tests {
         let expression: &str = "(> (+ 2 (/ (* 3 5) (group (+ 1 2)))) 7)";
 
         assert_eq!(parser.parse().to_string(), expression);
+    }
+
+    #[test]
+    fn evaluate_nil() {
+        let code: &str = "nil";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+        
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::None(None);
+
+        assert_eq!(result.unwrap(), expected);
     }
 
     #[test]
@@ -235,4 +278,50 @@ mod tests {
 
         assert_eq!(result.unwrap(), expected);
     }
+
+    #[test]
+    fn evaluate_bang_one() {
+        let code: &str = "!1";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::Bool(false);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn evaluate_bang_letter() {
+        let code: &str = "!\"a\"";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::Bool(false);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+    
+    #[test]
+    fn evaluate_bang_nil() {
+        let code: &str = "!nil";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::Bool(false);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
 }
