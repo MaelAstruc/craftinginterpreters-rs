@@ -1,7 +1,7 @@
 use core::panic;
 
-use crate::Lox;
-use crate::expr::{Expr, Binary, Grouping, Literal, Unary};
+use crate::{Lox};
+use crate::expr::{Expr, Binary, Grouping, Literal, Unary, Value};
 use crate::token::Token;
 use crate::token_type::TokenType;
 
@@ -109,20 +109,20 @@ impl Parser {
         match &token.token_type {
             TokenType::False => {
                 self.advance();
-                return Box::new(Literal {value: Some(false)})
+                return Box::new(Literal {value: Some(Value::Bool(false))})
                 },
             TokenType::True => {
                 self.advance();
-                return Box::new(Literal {value: Some(true)})
+                return Box::new(Literal {value: Some(Value::Bool(true))})
                 },
             TokenType::Nil => {
                 self.advance();
-                return Box::new(Literal {value: None::<u8>})
+                return Box::new(Literal {value: Some(Value::None(None::<u8>))})
                 },
             TokenType::Number(x) | TokenType::String(x) => {
-                let value: Option<String> = Some(x.clone());
+                let value: String = x.clone();
                 self.advance();
-                return Box::new(Literal {value: value})
+                return Box::new(Literal {value: Some(Value::String(value))})
                 },
             TokenType::LeftParen => {
                 self.advance();
