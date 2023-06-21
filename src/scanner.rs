@@ -54,8 +54,8 @@ impl Scanner {
                 if self.match_char('/') { while self.peek() != '\n' && self.is_at_end() { self.advance(); } }
                 else { self.add_token(TokenType::Slash) },
             ' ' => (),
-            'r' => (),
-            't' => (),
+            '\r' => (),
+            '\t' => (),
             '\n' => self.line += 1,
             '"' => self.string(),
             '0'..='9' => self.number(),
@@ -98,7 +98,7 @@ impl Scanner {
         self.add_token(TokenType::Number(value))
    }
 
-    fn match_char(&mut self, expected: char) ->bool {
+    fn match_char(&mut self, expected: char) -> bool {
         if self.is_at_end() {
             return false
         }
@@ -139,7 +139,7 @@ impl Scanner {
 
     fn advance(&mut self) -> char {
         let next_char: char = self.source.chars().nth(self.current).unwrap();
-        self.current  += 1;
+        self.current += 1;
         return next_char
     }
 
