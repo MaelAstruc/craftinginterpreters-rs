@@ -1,6 +1,6 @@
+use crate::Lox;
 use crate::token::Token;
 use crate::token_type::TokenType;
-use crate::Lox;
 
 pub struct Scanner {
     pub source: String,
@@ -148,5 +148,68 @@ impl Scanner {
         let lexeme: String = self.source[self.start..self.current].to_string();
         let new_token: Token = Token {token_type, lexeme, line: self.line};
         self.tokens.push(new_token)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::scanner::Scanner;
+    use crate::token_type::TokenType;
+
+
+    fn check_scan(code: &str, expected: Vec<TokenType>) {
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        for i in 0..expected.len() {
+            assert_eq!(scanner.tokens[i].token_type, expected[i]);
+        }
+    }
+
+    #[test]
+    fn test_scan_primitives() {
+        check_scan(
+            "\"Hello World !\"",
+            vec![TokenType::String("Hello World !".into())]
+        );
+        check_scan(
+            "nil",
+            vec![TokenType::Nil]
+        );
+        check_scan(
+            "1",
+            vec![TokenType::Number(1.0)]
+        );
+        check_scan(
+            "1.7",
+            vec![TokenType::Number(1.7)]
+        );
+        check_scan(
+            "true",
+            vec![TokenType::True]
+        );
+        check_scan(
+            "false",
+            vec![TokenType::False]
+        )
+    }
+
+    #[test]
+    fn scan_short_tokens() {
+        check_scan(
+            "=+(){},;>",
+            vec![
+                TokenType::Equal,
+                TokenType::Plus,
+                TokenType::LeftParen,
+                TokenType::RightParen,
+                TokenType::LeftBrace,
+                TokenType::RightBrace,
+                TokenType::Comma,
+                TokenType::SemiColon,
+                TokenType::Greater
+            ]
+        )
     }
 }

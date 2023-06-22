@@ -1,6 +1,6 @@
 use core::panic;
 
-use crate::{Lox};
+use crate::Lox;
 use crate::expr::{Expr, Binary, Grouping, Literal, Unary, Value};
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -201,4 +201,30 @@ impl Parser {
         }
     }
 
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::parser::Parser;
+    use crate::scanner::Scanner;
+
+    
+    fn check_parse(code: &str, expected: &str) {
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        assert_eq!(parser.parse().to_string(), expected);
+    }
+
+    #[test]
+    fn parse_short_expr() {
+        check_parse(
+            "// Test
+                2 + 3 * 5 / (1 + 2) > 7",
+            "(> (+ 2 (/ (* 3 5) (group (+ 1 2)))) 7)"
+        )
+    }
 }

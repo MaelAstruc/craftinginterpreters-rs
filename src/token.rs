@@ -27,3 +27,24 @@ impl std::fmt::Display for Token {
         }
       }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::token::Token;
+    use crate::token_type::TokenType;
+
+    #[test]
+    fn print_token() {
+        let token: Token = Token::new(
+            TokenType::String("String".into()),
+            "lexeme".to_string(),
+            1);
+        assert_eq!(token.to_string(), "String lexeme String");
+        let token: Token = Token::new(
+            TokenType::And,
+            "and".to_string(),
+            1);
+        assert_eq!(token.to_string(), "And and And");
+    }
+}

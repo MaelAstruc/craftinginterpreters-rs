@@ -210,7 +210,7 @@ fn check_equal(left: Option<Value>, right: Option<Value>) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests_expr {
   use super::*;
 
   #[test]
@@ -248,4 +248,116 @@ mod tests {
     assert_eq!(binary.to_string(), "(+ 3 5)".to_string());
   }
 
+}
+
+#[cfg(test)]
+mod tests_evaluate {
+    use std::f32::INFINITY;
+
+    use crate::expr::Value;
+    use crate::parser::Parser;
+    use crate::scanner::Scanner;
+
+    fn check_evaluate(code: &str, expected: Value) {
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn evaluate_nil() {
+        let code: &str = "nil";
+        let mut scanner : Scanner = Scanner::new(code.into());
+        scanner.scan_tokens();
+        
+        let mut parser: Parser = Parser::new(scanner.tokens);
+
+        let result: Option<Value> = parser.parse().evaluate();
+        
+        let expected: Value = Value::None(None);
+
+        assert_eq!(result.unwrap(), expected);
+    }
+
+    #[test]
+    fn evaluate_primary() {
+        check_evaluate("true", Value::Bool(true));
+        check_evaluate("false", Value::Bool(false));
+        check_evaluate("1", Value::F32(1.0));
+        check_evaluate("42", Value::F32(42.0));
+        check_evaluate("1.37", Value::F32(1.37));
+        check_evaluate("\"Hello World !\"", Value::String("Hello World !".into()));
+        check_evaluate("\"\t Hello \r\n World !\"", Value::String("\t Hello \r\n World !".into()));
+        check_evaluate("nil", Value::None(None))
+    }
+
+    #[test]
+    fn evaluate_bool() {
+        check_evaluate("!false", Value::Bool(true));
+        check_evaluate("!1", Value::Bool(false));
+        check_evaluate("!\"a\"", Value::Bool(false));
+        check_evaluate("!nil", Value::Bool(false));
+    }
+
+    #[test]
+    fn evaluate_grouping() {
+        check_evaluate("(-1)", Value::F32(-1.0));
+        check_evaluate("((-1))", Value::F32(-1.0))
+    }
+
+    #[test]
+    fn evaluate_unary() {
+        check_evaluate("!true", Value::Bool(false));
+        check_evaluate("!!true", Value::Bool(true));
+        check_evaluate("!!!true", Value::Bool(false));
+        check_evaluate("-1", Value::F32(-1.0));
+        check_evaluate("--1", Value::F32(1.0));
+    }
+
+    #[test]
+    fn evaluate_binary() {
+        check_evaluate("5-3", Value::F32(2.0));
+        check_evaluate("5 - 3", Value::F32(2.0));
+        check_evaluate("5--3", Value::F32(8.0));
+        check_evaluate("5+3", Value::F32(8.0));
+        check_evaluate("\"Hello\"+ \" \" + \"World\"", Value::String("Hello World".into()));
+        check_evaluate("3*5", Value::F32(15.0));
+        check_evaluate("3*0", Value::F32(0.0));
+        check_evaluate("3/5", Value::F32(0.6));
+        check_evaluate("3/0", Value::F32(INFINITY));
+        check_evaluate("5>3", Value::Bool(true));
+        check_evaluate("5>5", Value::Bool(false));
+        check_evaluate("5>7", Value::Bool(false));
+        check_evaluate("5>=3", Value::Bool(true));
+        check_evaluate("5>=5", Value::Bool(true));
+        check_evaluate("5>=7", Value::Bool(false));
+        check_evaluate("5<3", Value::Bool(false));
+        check_evaluate("5<5", Value::Bool(false));
+        check_evaluate("5<7", Value::Bool(true));
+        check_evaluate("5<=3", Value::Bool(false));
+        check_evaluate("5<=5", Value::Bool(true));
+        check_evaluate("5<=7", Value::Bool(true));
+        check_evaluate("5==5", Value::Bool(true));
+        check_evaluate("5==7", Value::Bool(false));
+        check_evaluate("\"a\"==\"a\"", Value::Bool(true));
+        check_evaluate("\"a\"==\"b\"", Value::Bool(false));
+        check_evaluate("true==true", Value::Bool(true));
+        check_evaluate("true==false", Value::Bool(false));
+        check_evaluate("nil==nil", Value::Bool(true));
+        check_evaluate("5!=5", Value::Bool(false));
+        check_evaluate("5!=7", Value::Bool(true));
+        check_evaluate("\"a\"!=\"a\"", Value::Bool(false));
+        check_evaluate("\"a\"!=\"b\"", Value::Bool(true));
+        check_evaluate("true!=true", Value::Bool(false));
+        check_evaluate("true!=false", Value::Bool(true));
+        check_evaluate("nil!=nil", Value::Bool(false));
+        check_evaluate("1==true", Value::Bool(false));
+        check_evaluate("1==\"a\"", Value::Bool(false));
+        check_evaluate("1==nil", Value::Bool(false));
+    }
 }

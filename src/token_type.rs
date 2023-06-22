@@ -30,4 +30,16 @@ impl std::fmt::Display for TokenType {
     }
   }
 }  
-  
+
+
+
+#[cfg(test)]
+mod tests {
+    use crate::token_type::TokenType;
+
+    #[test]
+    fn print_token_type() {
+        assert_eq!(TokenType::And.to_string(), "And")
+    }
+
+}
