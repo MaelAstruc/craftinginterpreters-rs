@@ -32,104 +32,27 @@ impl Expr for Box<dyn Expr> {
   }
 }
 
-macro_rules! make_binary {
-  ($name: ident, $left: ident, $operator: ident, $right: ident) => {
-    pub struct $name<T: Expr, U: Expr> {
-      pub $left: T,
-      pub $operator: Token,
-      pub $right: U
+macro_rules! make_expr {
+  (
+    $name:ident
+    $(<$($generics:tt: $trait:ident),*>)?, 
+    $($element: ident: $ty: ty), *
+  ) => {
+    pub struct $name $(<$($generics:$trait),*>)? {
+      $(pub $element: $ty), *
     }
 
-    impl<T: Expr + Display, U: Expr + Display> Display for $name<T, U> {
-      fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "({} {} {})", &self.$operator.lexeme, &self.$left, &self.$right)
-      }
-    }
-
-    impl<T: Expr, U: Expr> $name<T, U> {
-      pub fn new($left: T, $operator: Token, $right: U) -> $name<T,U> {
+    impl $(<$($generics:$trait),*>)? $name $(<$($generics),*>)? {
+      pub fn new($($element: $ty), *) -> $name $(<$($generics),*>)? {
         $name {
-          $left: $left,
-          $operator: $operator,
-          $right: $right,
+          $($element), *
         }
       }
     }
   }
 }
 
-macro_rules! make_grouping {
-  ($name: ident, $expression: ident) => {
-    pub struct $name<T: Expr> {
-      pub $expression: T
-    }
-
-    impl<T: Expr + Display> Display for $name<T> {
-      fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "(group {})", &self.$expression)
-      }
-    }
-
-    impl<T: Expr> $name<T> {
-      pub fn new($expression: T) -> $name<T> {
-        $name {
-          $expression: $expression,
-        }
-      }
-    }
-  }
-}
-
-macro_rules! make_literal {
-  ($name: ident, $value: ident) => {
-    pub struct $name {
-      pub $value: Option<Value>
-    }
-
-    impl Display for Literal {
-      fn fmt(&self, f: &mut Formatter) -> Result {
-        match &self.$value {
-          Some(x) => write!(f, "{}", x),
-          None => write!(f, "{}", "Some")
-        }
-      }
-    }
-
-    impl $name {
-      pub fn new($value: Option<Value>) -> $name {
-        $name {
-          $value: $value,
-        }
-      }
-    }
-  }
-}
-
-macro_rules! make_unary {
-  ($name: ident, $operator: ident, $right: ident) => {
-    pub struct $name<T: Expr> {
-      pub $operator: Token,
-      pub $right: T
-    }
-
-    impl<T: Expr + Display> Display for $name<T> {
-      fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "({} {})", &self.$operator.lexeme, &self.$right)
-      }
-    }
-
-    impl<T: Expr> $name<T> {
-      pub fn new($operator: Token, $right: T) -> $name<T> {
-        $name {
-          $operator: $operator,
-          $right: $right,
-        }
-      }
-    }
-  }
-}
-
-make_binary!(Binary, left, operator, right);
+make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
 impl<T: Expr, U: Expr> Expr for Binary<T, U> {
   fn evaluate(&self) -> Option<Value> {
@@ -204,7 +127,13 @@ impl<T: Expr, U: Expr> Expr for Binary<T, U> {
   }
 }
 
-make_grouping!(Grouping, expression);
+impl<T: Expr, U: Expr> Display for Binary<T, U> {
+  fn fmt(&self, f: &mut Formatter) -> Result {
+    write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
+  }
+}
+
+make_expr!(Grouping<T: Expr>, expression: T);
 
 impl<T: Expr> Expr for Grouping<T> {
   fn evaluate(&self) -> Option<Value> {
@@ -212,7 +141,13 @@ impl<T: Expr> Expr for Grouping<T> {
   }
 }
 
-make_literal!(Literal, value);
+impl<T: Expr + Display> Display for Grouping<T> {
+  fn fmt(&self, f: &mut Formatter) -> Result {
+    write!(f, "(group {})", &self.expression)
+  }
+}
+
+make_expr!(Literal, value: Option<Value>);
 
 impl Expr for Literal {
   fn evaluate(&self) -> Option<Value> {
@@ -220,7 +155,16 @@ impl Expr for Literal {
   }
 }
 
-make_unary!(Unary, operator, right);
+impl Display for Literal {
+  fn fmt(&self, f: &mut Formatter) -> Result {
+    match &self.value {
+      Some(x) => write!(f, "{}", x),
+      None => write!(f, "{}", "None")
+    }
+  }
+}
+
+make_expr!(Unary<T: Expr>, operator: Token, right: T);
 
 impl<T: Expr> Expr for Unary<T> {
   fn evaluate(&self) -> Option<Value> {
@@ -236,6 +180,12 @@ impl<T: Expr> Expr for Unary<T> {
       TokenType::Bang => Some(Value::Bool(!check_bool(value))),
       _ => None
     }
+  }
+}
+
+impl<T: Expr + Display> Display for Unary<T> {
+  fn fmt(&self, f: &mut Formatter) -> Result {
+    write!(f, "({} {})", &self.operator.lexeme, &self.right)
   }
 }
 
@@ -257,4 +207,45 @@ fn check_equal(left: Option<Value>, right: Option<Value>) -> bool {
     (_, None) => panic!(),
     (_, _) => false,
   }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_make_expr() {
+    make_expr!(Literal, value:u8);
+
+    impl Expr for Literal {
+      fn evaluate(&self) -> Option<Value> { None }
+    }
+    
+    impl Display for Literal {
+      fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "{}", &self.value)
+      }
+    }
+    let literal: Literal = Literal::new(8);
+    assert_eq!(literal.to_string(), "8".to_string());
+
+    make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
+
+    impl<T: Expr, U:Expr> Expr for Binary<T, U> {
+      fn evaluate(&self) -> Option<Value> { None }
+    }
+    
+    impl<T: Expr, U: Expr> Display for Binary<T, U> {
+      fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
+      }
+    }
+    
+    let left: Literal = Literal::new(3);
+    let right: Literal = Literal::new(5);
+    let operator: Token = Token::new(TokenType::Plus, "+".into(), 1);
+    let binary: Binary<Literal, Literal> = Binary::new(left, operator, right);
+    assert_eq!(binary.to_string(), "(+ 3 5)".to_string());
+  }
+
 }
