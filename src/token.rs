@@ -7,15 +7,7 @@ pub struct Token {
     pub line: u32
 }
 
-impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, line:u32) -> Token {
-        Token {
-            token_type: token_type,
-            lexeme: lexeme,
-            line: line
-        }
-    }
-}
+impl Token { }
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -36,15 +28,17 @@ mod tests {
 
     #[test]
     fn print_token() {
-        let token: Token = Token::new(
-            TokenType::String("String".into()),
-            "lexeme".to_string(),
-            1);
+        let token: Token = Token {
+            token_type: TokenType::String("String".into()),
+            lexeme: "lexeme".to_string(),
+            line: 1
+        };
         assert_eq!(token.to_string(), "String lexeme String");
-        let token: Token = Token::new(
-            TokenType::And,
-            "and".to_string(),
-            1);
+        let token: Token = Token {
+            token_type: TokenType::And,
+            lexeme: "and".to_string(),
+            line: 1
+        };
         assert_eq!(token.to_string(), "And and And");
     }
 }

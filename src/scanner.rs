@@ -21,7 +21,7 @@ impl Scanner {
             self.start = self.current;
             self.scan_token();
         }
-        let last_token = Token::new(TokenType::Eof, "".to_string(), self.line);
+        let last_token = Token {token_type: TokenType::Eof, lexeme: "".to_string(), line: self.line};
         self.tokens.push(last_token);
     }
 

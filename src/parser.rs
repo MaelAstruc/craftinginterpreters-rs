@@ -1,9 +1,8 @@
-use core::panic;
-
 use crate::Lox;
-use crate::expr::{Expr, Binary, Grouping, Literal, Unary, Value};
+use crate::expr::{Expr, Binary, Grouping, Literal, Unary};
 use crate::token::Token;
 use crate::token_type::TokenType;
+use crate::value::Value;
 
 pub struct Parser {
     pub tokens: Vec<Token>,
@@ -109,25 +108,25 @@ impl Parser {
         match &token.token_type {
             TokenType::False => {
                 self.advance();
-                return Box::new(Literal {value: Some(Value::Bool(false))})
+                return Box::new(Literal {value: Value::Bool(false)})
                 },
             TokenType::True => {
                 self.advance();
-                return Box::new(Literal {value: Some(Value::Bool(true))})
+                return Box::new(Literal {value: Value::Bool(true)})
                 },
             TokenType::Nil => {
                 self.advance();
-                return Box::new(Literal {value: Some(Value::None(None::<u8>))})
+                return Box::new(Literal {value: Value::Nil})
                 },
             TokenType::String(x) => {
                 let value: String = x.clone();
                 self.advance();
-                return Box::new(Literal {value: Some(Value::String(value))})
+                return Box::new(Literal {value: Value::String(value)})
                 },
             TokenType::Number(x) => {
                 let value: f32 = x.clone();
                 self.advance();
-                return Box::new(Literal {value: Some(Value::F32(value))})
+                return Box::new(Literal {value: Value::Number(value)})
                 },
             TokenType::LeftParen => {
                 self.advance();

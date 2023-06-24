@@ -1,33 +1,17 @@
-use std::fmt::{Display, Formatter, Result};
+use std::fmt;
 
+use crate::interpreter::Interpreter;
+use crate::runtime_error::RuntimeError;
 use crate::token::Token;
 use crate::token_type::TokenType;
+use crate::value::Value;
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum Value {
-  Bool(bool),
-  F32(f32),
-  String(String),
-  None(Option<u8>)
-}
-
-impl std::fmt::Display for Value {
-  fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-    match &self {
-      Self::Bool(x) => write!(f, "{}", x),
-      Self::F32(x) => write!(f, "{}", x),
-      Self::String(x) => write!(f, "{}", x),
-      Self::None(_) => write!(f, "{}", "None")
-    }
-  }
-}
-
-pub trait Expr: Display {
-  fn evaluate(&self) -> Option<Value>;
+pub trait Expr: std::fmt::Display {
+  fn evaluate(&self) -> Result<Value, RuntimeError>;
 }
 
 impl Expr for Box<dyn Expr> {
-  fn evaluate(&self) -> Option<Value> {
+  fn evaluate(&self) -> Result<Value, RuntimeError> {
     (**self).evaluate()
   }
 }
@@ -41,323 +25,192 @@ macro_rules! make_expr {
     pub struct $name $(<$($generics:$trait),*>)? {
       $(pub $element: $ty), *
     }
-
-    impl $(<$($generics:$trait),*>)? $name $(<$($generics),*>)? {
-      pub fn new($($element: $ty), *) -> $name $(<$($generics),*>)? {
-        $name {
-          $($element), *
-        }
-      }
-    }
   }
 }
+
 
 make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
 impl<T: Expr, U: Expr> Expr for Binary<T, U> {
-  fn evaluate(&self) -> Option<Value> {
-    let left: Option<Value> = self.left.evaluate();
-    let right: Option<Value> = self.right.evaluate();
-    match self.operator.token_type {
-      TokenType::Minus => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) => Some(Value::F32(x-y)),
-          (_, _) => None
+    fn evaluate(&self) -> Result<Value, RuntimeError> {
+        let left: Value = match self.left.evaluate() {
+            Ok(x) => x,
+            Err(x) => return Err(x)
+        };
+        let right: Value  = match self.right.evaluate() {
+            Ok(x) => x,
+            Err(x) => return Err(x)
+        };
+        let token: &Token = &self.operator;
+        let token_type: &TokenType = &token.token_type;
+        match token_type {
+            TokenType::Minus => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x-y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::Plus => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x+y)),
+                    (Value::String(x), Value::String(y)) => Ok(Value::String(x+&y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers or two strings", x, y))
+                }
+            },
+            TokenType::Slash => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x/y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::Star => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x*y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::Greater => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x>y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::GreaterEqual => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x>=y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::Less => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x<y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::LessEqual => {
+                match (left, right) {
+                    (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x<=y)),
+                    (x, y) => Err(Interpreter::check_operands(token.clone(), "expected two numbers", x, y))
+                }
+            },
+            TokenType::EqualEqual => Ok(Value::Bool(Interpreter::check_equal(left, right))),
+            TokenType::BangEqual => Ok(Value::Bool(!Interpreter::check_equal(left, right))),
+            _ => panic!("Unexpected token: {}", token)
         }
-      },
-      TokenType::Plus => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::F32(x+y)),
-          (Some(Value::String(x)), Some(Value::String(y))) =>
-            Some(Value::String(x+&y)),
-          (_, _) => None
-        }
-      },
-      TokenType::Slash => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::F32(x/y)),
-          (_, _) => None
-        }
-      },
-      TokenType::Star => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::F32(x*y)),
-          (_, _) => None
-        }
-      },
-      TokenType::Greater => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::Bool(x>y)),
-          (_, _) => None
-        }
-      },
-      TokenType::GreaterEqual => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::Bool(x>=y)),
-          (_, _) => None
-        }
-      },
-      TokenType::Less => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::Bool(x<y)),
-          (_, _) => None
-        }
-      },
-      TokenType::LessEqual => {
-        match (left, right) {
-          (Some(Value::F32(x)), Some(Value::F32(y))) =>
-            Some(Value::Bool(x<=y)),
-          (_, _) => None
-        }
-      },
-      TokenType::EqualEqual => {
-        Some(Value::Bool(check_equal(left, right)))
-      },
-      TokenType::BangEqual => {
-        Some(Value::Bool(!check_equal(left, right)))
-      },
-      _ => None
     }
-  }
 }
 
-impl<T: Expr, U: Expr> Display for Binary<T, U> {
-  fn fmt(&self, f: &mut Formatter) -> Result {
-    write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
-  }
+impl<T: Expr, U: Expr> fmt::Display for Binary<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
+    }
 }
 
 make_expr!(Grouping<T: Expr>, expression: T);
 
 impl<T: Expr> Expr for Grouping<T> {
-  fn evaluate(&self) -> Option<Value> {
-    self.expression.evaluate()
-  }
+    fn evaluate(&self) -> Result<Value, RuntimeError> {
+        self.expression.evaluate()
+    }
 }
 
-impl<T: Expr + Display> Display for Grouping<T> {
-  fn fmt(&self, f: &mut Formatter) -> Result {
-    write!(f, "(group {})", &self.expression)
-  }
+impl<T: Expr + fmt::Display> fmt::Display for Grouping<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "(group {})", &self.expression)
+    }
 }
 
-make_expr!(Literal, value: Option<Value>);
+make_expr!(Literal, value: Value);
 
 impl Expr for Literal {
-  fn evaluate(&self) -> Option<Value> {
-    self.value.clone()
-  }
+    fn evaluate(&self) -> Result<Value, RuntimeError> {
+        Ok(self.value.clone())
+    }
 }
 
-impl Display for Literal {
-  fn fmt(&self, f: &mut Formatter) -> Result {
-    match &self.value {
-      Some(x) => write!(f, "{}", x),
-      None => write!(f, "{}", "None")
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", &self.value)
     }
-  }
 }
 
 make_expr!(Unary<T: Expr>, operator: Token, right: T);
 
 impl<T: Expr> Expr for Unary<T> {
-  fn evaluate(&self) -> Option<Value> {
-    let value: Option<Value> = self.right.evaluate();
-    match self.operator.token_type {
-      TokenType::Minus => {
-        match value {
-          Some(Value::F32(x)) => Some(Value::F32(-x)),
-          Some(_) => None,
-          None => None
-          }
-        },
-      TokenType::Bang => Some(Value::Bool(!check_bool(value))),
-      _ => None
+    fn evaluate(&self) -> Result<Value, RuntimeError> {
+        let right: Value  = match self.right.evaluate() {
+            Ok(x) => x,
+            Err(x) => return Err(x)
+        };
+        let token = &self.operator;
+        let token_type = &token.token_type;
+        match token_type {
+            TokenType::Minus => {
+                match right {
+                    Value::Number(x) => Ok(Value::Number(-x)),
+                    x => Err(Interpreter::check_operand(self.operator.clone(), "expected a number", x))
+                }
+                },
+            TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(right))),
+            _ => panic!("Expected tokens: {}, found token ({})", "(-) or (!)", self.operator.clone())
+        }
     }
-  }
 }
 
-impl<T: Expr + Display> Display for Unary<T> {
-  fn fmt(&self, f: &mut Formatter) -> Result {
-    write!(f, "({} {})", &self.operator.lexeme, &self.right)
-  }
+impl<T: Expr + fmt::Display> fmt::Display for Unary<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} {})", &self.operator.lexeme, &self.right)
+    }
 }
 
-fn check_bool(value: Option<Value>) -> bool {
-  match value {
-    Some(Value::Bool(x)) => x,
-    Some(_) => true,
-    None => true
-  }
-}
-
-fn check_equal(left: Option<Value>, right: Option<Value>) -> bool {
-  match (left, right) {
-    (Some(Value::F32(x)), Some(Value::F32(y))) => x==y,
-    (Some(Value::String(x)), Some(Value::String(y))) => x==y,
-    (Some(Value::Bool(x)), Some(Value::Bool(y))) => x==y,
-    (Some(Value::None(_)), Some(Value::None(_))) => true,
-    (None, _) => panic!(),
-    (_, None) => panic!(),
-    (_, _) => false,
-  }
-}
 
 #[cfg(test)]
 mod tests_expr {
-  use super::*;
+  use std::fmt;
+
+  use crate::expr::Expr;
+  use crate::runtime_error::RuntimeError;
+  use crate::token::Token;
+  use crate::token_type::TokenType;
+  use crate::value::Value;
+
 
   #[test]
   fn test_make_expr() {
     make_expr!(Literal, value:u8);
 
     impl Expr for Literal {
-      fn evaluate(&self) -> Option<Value> { None }
+      fn evaluate(&self) -> Result<Value, RuntimeError> {
+        Ok(Value::Nil)
+      }
     }
     
-    impl Display for Literal {
-      fn fmt(&self, f: &mut Formatter) -> Result {
+    impl fmt::Display for Literal {
+      fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", &self.value)
       }
     }
-    let literal: Literal = Literal::new(8);
+    let literal: Literal = Literal{value: 8};
     assert_eq!(literal.to_string(), "8".to_string());
 
     make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
     impl<T: Expr, U:Expr> Expr for Binary<T, U> {
-      fn evaluate(&self) -> Option<Value> { None }
+      fn evaluate(&self) -> Result<Value, RuntimeError> {
+        Ok(Value::Nil)
+      }
     }
     
-    impl<T: Expr, U: Expr> Display for Binary<T, U> {
-      fn fmt(&self, f: &mut Formatter) -> Result {
+    impl<T: Expr, U: Expr> fmt::Display for Binary<T, U> {
+      fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
       }
     }
     
-    let left: Literal = Literal::new(3);
-    let right: Literal = Literal::new(5);
-    let operator: Token = Token::new(TokenType::Plus, "+".into(), 1);
-    let binary: Binary<Literal, Literal> = Binary::new(left, operator, right);
+    let left: Literal = Literal{value: 3};
+    let right: Literal = Literal{value: 5};
+    let operator: Token = Token {token_type: TokenType::Plus, lexeme: "+".into(), line: 1};
+    let binary: Binary<Literal, Literal> = Binary{left, operator, right};
     assert_eq!(binary.to_string(), "(+ 3 5)".to_string());
   }
-
-}
-
-#[cfg(test)]
-mod tests_evaluate {
-    use std::f32::INFINITY;
-
-    use crate::expr::Value;
-    use crate::parser::Parser;
-    use crate::scanner::Scanner;
-
-    fn check_evaluate(code: &str, expected: Value) {
-        let mut scanner : Scanner = Scanner::new(code.into());
-        scanner.scan_tokens();
-
-        let mut parser: Parser = Parser::new(scanner.tokens);
-
-        let result: Option<Value> = parser.parse().evaluate();
-        
-        assert_eq!(result.unwrap(), expected);
-    }
-
-    #[test]
-    fn evaluate_nil() {
-        let code: &str = "nil";
-        let mut scanner : Scanner = Scanner::new(code.into());
-        scanner.scan_tokens();
-        
-        let mut parser: Parser = Parser::new(scanner.tokens);
-
-        let result: Option<Value> = parser.parse().evaluate();
-        
-        let expected: Value = Value::None(None);
-
-        assert_eq!(result.unwrap(), expected);
-    }
-
-    #[test]
-    fn evaluate_primary() {
-        check_evaluate("true", Value::Bool(true));
-        check_evaluate("false", Value::Bool(false));
-        check_evaluate("1", Value::F32(1.0));
-        check_evaluate("42", Value::F32(42.0));
-        check_evaluate("1.37", Value::F32(1.37));
-        check_evaluate("\"Hello World !\"", Value::String("Hello World !".into()));
-        check_evaluate("\"\t Hello \r\n World !\"", Value::String("\t Hello \r\n World !".into()));
-        check_evaluate("nil", Value::None(None))
-    }
-
-    #[test]
-    fn evaluate_bool() {
-        check_evaluate("!false", Value::Bool(true));
-        check_evaluate("!1", Value::Bool(false));
-        check_evaluate("!\"a\"", Value::Bool(false));
-        check_evaluate("!nil", Value::Bool(false));
-    }
-
-    #[test]
-    fn evaluate_grouping() {
-        check_evaluate("(-1)", Value::F32(-1.0));
-        check_evaluate("((-1))", Value::F32(-1.0))
-    }
-
-    #[test]
-    fn evaluate_unary() {
-        check_evaluate("!true", Value::Bool(false));
-        check_evaluate("!!true", Value::Bool(true));
-        check_evaluate("!!!true", Value::Bool(false));
-        check_evaluate("-1", Value::F32(-1.0));
-        check_evaluate("--1", Value::F32(1.0));
-    }
-
-    #[test]
-    fn evaluate_binary() {
-        check_evaluate("5-3", Value::F32(2.0));
-        check_evaluate("5 - 3", Value::F32(2.0));
-        check_evaluate("5--3", Value::F32(8.0));
-        check_evaluate("5+3", Value::F32(8.0));
-        check_evaluate("\"Hello\"+ \" \" + \"World\"", Value::String("Hello World".into()));
-        check_evaluate("3*5", Value::F32(15.0));
-        check_evaluate("3*0", Value::F32(0.0));
-        check_evaluate("3/5", Value::F32(0.6));
-        check_evaluate("3/0", Value::F32(INFINITY));
-        check_evaluate("5>3", Value::Bool(true));
-        check_evaluate("5>5", Value::Bool(false));
-        check_evaluate("5>7", Value::Bool(false));
-        check_evaluate("5>=3", Value::Bool(true));
-        check_evaluate("5>=5", Value::Bool(true));
-        check_evaluate("5>=7", Value::Bool(false));
-        check_evaluate("5<3", Value::Bool(false));
-        check_evaluate("5<5", Value::Bool(false));
-        check_evaluate("5<7", Value::Bool(true));
-        check_evaluate("5<=3", Value::Bool(false));
-        check_evaluate("5<=5", Value::Bool(true));
-        check_evaluate("5<=7", Value::Bool(true));
-        check_evaluate("5==5", Value::Bool(true));
-        check_evaluate("5==7", Value::Bool(false));
-        check_evaluate("\"a\"==\"a\"", Value::Bool(true));
-        check_evaluate("\"a\"==\"b\"", Value::Bool(false));
-        check_evaluate("true==true", Value::Bool(true));
-        check_evaluate("true==false", Value::Bool(false));
-        check_evaluate("nil==nil", Value::Bool(true));
-        check_evaluate("5!=5", Value::Bool(false));
-        check_evaluate("5!=7", Value::Bool(true));
-        check_evaluate("\"a\"!=\"a\"", Value::Bool(false));
-        check_evaluate("\"a\"!=\"b\"", Value::Bool(true));
-        check_evaluate("true!=true", Value::Bool(false));
-        check_evaluate("true!=false", Value::Bool(true));
-        check_evaluate("nil!=nil", Value::Bool(false));
-        check_evaluate("1==true", Value::Bool(false));
-        check_evaluate("1==\"a\"", Value::Bool(false));
-        check_evaluate("1==nil", Value::Bool(false));
-    }
 }
