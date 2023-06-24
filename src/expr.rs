@@ -1,33 +1,21 @@
 use std::fmt;
 
 use crate::interpreter::Interpreter;
+use crate::make_expr;  // from mod utils
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
 
 pub trait Expr: std::fmt::Display {
-  fn evaluate(&self) -> Result<Value, RuntimeError>;
+    fn evaluate(&self) -> Result<Value, RuntimeError>;
 }
 
 impl Expr for Box<dyn Expr> {
-  fn evaluate(&self) -> Result<Value, RuntimeError> {
-    (**self).evaluate()
-  }
-}
-
-macro_rules! make_expr {
-  (
-    $name:ident
-    $(<$($generics:tt: $trait:ident),*>)?, 
-    $($element: ident: $ty: ty), *
-  ) => {
-    pub struct $name $(<$($generics:$trait),*>)? {
-      $(pub $element: $ty), *
+    fn evaluate(&self) -> Result<Value, RuntimeError> {
+        (**self).evaluate()
     }
-  }
 }
-
 
 make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
@@ -163,12 +151,12 @@ impl<T: Expr + fmt::Display> fmt::Display for Unary<T> {
     }
 }
 
-
 #[cfg(test)]
 mod tests_expr {
   use std::fmt;
 
   use crate::expr::Expr;
+  use crate::make_expr; // from mod utils
   use crate::runtime_error::RuntimeError;
   use crate::token::Token;
   use crate::token_type::TokenType;

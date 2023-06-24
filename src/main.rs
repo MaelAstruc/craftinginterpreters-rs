@@ -4,6 +4,7 @@ use std::process;
 
 pub mod expr;
 pub mod interpreter;
+pub mod utils;
 pub mod parser;
 pub mod runtime_error;
 pub mod scanner;
