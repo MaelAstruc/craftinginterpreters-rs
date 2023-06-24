@@ -8,6 +8,7 @@ pub mod utils;
 pub mod parser;
 pub mod runtime_error;
 pub mod scanner;
+pub mod stmt;
 pub mod token_type;
 pub mod token;
 pub mod value;
