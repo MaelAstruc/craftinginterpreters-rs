@@ -36,6 +36,7 @@ impl Parser {
     }
 
     pub fn print_statement(&mut self) -> Box<dyn Stmt> {
+        self.advance();
         let value: Box<dyn Expr> = self.expression();
         self.consume(&TokenType::SemiColon, "Expect ';' after value.");
         Box::new(Print {expression: value})
@@ -58,7 +59,7 @@ impl Parser {
                     let right: Box<dyn Expr> = self.comparison();
                     expr = Box::new(Binary {left: expr, operator, right});
                 },
-                TokenType::Eof | _ => break
+                _ => break
             }
         }
         return expr
@@ -75,7 +76,7 @@ impl Parser {
                     let right: Box<dyn Expr> = self.term();
                     expr = Box::new(Binary {left: expr, operator, right});
                 },
-                TokenType::Eof | _ => break
+                _ => break
             }
         }
         return expr
@@ -92,7 +93,7 @@ impl Parser {
                     let right: Box<dyn Expr> = self.factor();
                     expr = Box::new(Binary {left: expr, operator, right});
                 },
-                TokenType::Eof | _ => break
+                _ => break
             }
         }
     return expr
@@ -109,7 +110,7 @@ impl Parser {
                     let right: Box<dyn Expr> = self.unary();
                     expr = Box::new(Binary {left: expr, operator, right});
                 },
-                TokenType::Eof | _ => break
+                _ => break
             }
         }
         return expr
@@ -124,7 +125,7 @@ impl Parser {
                 let right: Box<dyn Expr> = self.unary();
                 return Box::new(Unary {operator, right});
             },
-            TokenType::Eof | _ => return self.primary(),
+            _ => return self.primary(),
         }
     }
 
@@ -159,7 +160,7 @@ impl Parser {
                 self.consume(&TokenType::RightParen, "Expect ')' after expression.");
                 return Box::new(Grouping {expression})
                 },
-            TokenType::Eof | _ => panic!("{}", &self.peek().token_type)
+            _ => panic!("{}", &self.peek().token_type)
         }
     }
 

@@ -63,7 +63,7 @@ impl Lox {
     pub fn run(&mut self, code: String) {
         let mut scanner: Scanner = Scanner::new(code);
         scanner.scan_tokens();
-
+        
         let mut parser: Parser = Parser::new(scanner.tokens);
         let statements: Vec<Box<dyn Stmt>> = parser.parse();
 
