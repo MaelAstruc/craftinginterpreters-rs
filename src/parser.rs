@@ -1,5 +1,6 @@
 use crate::Lox;
 use crate::expr::{Expr, Binary, Grouping, Literal, Unary};
+use crate::stmt::{Stmt, Print, Expression};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
@@ -14,12 +15,36 @@ impl Parser {
         Parser {tokens: tokens, curr: 0}
     }
 
-    pub fn parse(&mut self) -> Box<dyn Expr> {
-        self.expression()
+    pub fn parse(&mut self) -> Vec<Box<dyn Stmt>> {
+        let mut statements: Vec<Box<dyn Stmt>> = Vec::new();
+        while !self.is_at_end() {
+            statements.push(self.statement());
+        }
+        return statements
     }
 
     pub fn expression(&mut self) -> Box<dyn Expr> {
         self.equality()
+    }
+
+    pub fn statement(&mut self) -> Box<dyn Stmt> {
+        let token: &Token = self.peek();
+        match token.token_type {
+            TokenType::Print => self.print_statement(),
+            _ => self.expression_statement()
+        }
+    }
+
+    pub fn print_statement(&mut self) -> Box<dyn Stmt> {
+        let value: Box<dyn Expr> = self.expression();
+        self.consume(&TokenType::SemiColon, "Expect ';' after value.");
+        Box::new(Print {expression: value})
+    }
+
+    pub fn expression_statement(&mut self) -> Box<dyn Stmt> {
+        let value: Box<dyn Expr> = self.expression();
+        self.consume(&TokenType::SemiColon, "Expect ';' after value.");
+        Box::new(Expression {expression: value})
     }
 
     pub fn equality(&mut self) -> Box<dyn Expr> {
@@ -215,14 +240,16 @@ mod tests {
 
         let mut parser: Parser = Parser::new(scanner.tokens);
 
-        assert_eq!(parser.parse().to_string(), expected);
+        for statement in parser.parse() {
+            assert_eq!(statement.to_string(), expected);
+        }
     }
 
     #[test]
     fn parse_short_expr() {
         check_parse(
             "// Test
-                2 + 3 * 5 / (1 + 2) > 7",
+                2 + 3 * 5 / (1 + 2) > 7;",
             "(> (+ 2 (/ (* 3 5) (group (+ 1 2)))) 7)"
         )
     }

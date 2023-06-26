@@ -15,8 +15,8 @@ pub mod value;
 
 use interpreter::Interpreter;
 use runtime_error::RuntimeError;
+use stmt::Stmt;
 
-use crate::expr::Expr;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use crate::token::Token;
@@ -65,9 +65,13 @@ impl Lox {
         scanner.scan_tokens();
 
         let mut parser: Parser = Parser::new(scanner.tokens);
-        let expression: Box<dyn Expr> = parser.parse();
+        let statements: Vec<Box<dyn Stmt>> = parser.parse();
 
-        Interpreter::interpret(self, expression)
+        if self.had_error {
+            return
+        }
+
+        Interpreter::interpret(self, statements)
     }
 
     fn error(line: u32, message: &str) {

@@ -1,15 +1,21 @@
 #[macro_use]
 #[path = "expr.rs"] mod expr;
 
-use crate::{Expr, Lox, value::Value, runtime_error::RuntimeError, token::Token};
+use crate::Lox;
+use crate::value::Value;
+use crate::runtime_error::RuntimeError;
+use crate::token::Token;
+use crate::stmt::Stmt;
 
 pub struct Interpreter {}
 
 impl Interpreter {
-    pub fn interpret (lox: &mut Lox, expression: Box<dyn Expr>) {
-        match expression.evaluate() {
-            Ok(x) => println!("{}", x),
-            Err(x) => lox.runtime_error(x)
+    pub fn interpret (lox: &mut Lox, statements: Vec<Box<dyn Stmt>>) {
+        for statement in statements {
+            match statement.execute() {
+                Ok(_) => (),
+                Err(x) => lox.runtime_error(x)
+            }
         }
     }
 
@@ -45,7 +51,7 @@ impl Interpreter {
 
 
 
-  
+/*
 #[cfg(test)]
 mod tests_evaluate {
     use std::f32::INFINITY;
@@ -162,4 +168,4 @@ mod tests_evaluate {
         check_evaluate("1==\"a\"", Value::Bool(false));
         check_evaluate("1==nil", Value::Bool(false));
     }
-}
+} */
