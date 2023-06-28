@@ -84,7 +84,7 @@ impl Scanner {
             "true" => self.add_token(TokenType::True),
             "var" => self.add_token(TokenType::Var),
             "while" => self.add_token(TokenType::While),
-            _ => ()
+            _ => self.add_token(TokenType::Identifier(value.into()))
         };
       }
     
