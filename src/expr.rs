@@ -1,5 +1,6 @@
 use std::fmt;
 
+use crate::environment::Environment;
 use crate::interpreter::Interpreter;
 use crate::make_expr;  // from mod utils
 use crate::runtime_error::RuntimeError;
@@ -7,25 +8,61 @@ use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
 
-pub trait Expr: std::fmt::Display {
-    fn evaluate(&self) -> Result<Value, RuntimeError>;
+#[warn(dead_code)]
+pub enum ExprEnum {
+    Binary(Box<Binary>),
+    Grouping(Box<Grouping>),
+    Literal(Box<Literal>),
+    Unary(Box<Unary>),
+    Var(Box<Var>),
+    Assign(Box<Assign>)
 }
 
-impl Expr for Box<dyn Expr> {
-    fn evaluate(&self) -> Result<Value, RuntimeError> {
-        (**self).evaluate()
+impl Expr for ExprEnum {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        match self {
+            ExprEnum::Binary(x) => x.evaluate(environment),
+            ExprEnum::Grouping(x) => x.evaluate(environment),
+            ExprEnum::Literal(x) => x.evaluate(environment),
+            ExprEnum::Unary(x) => x.evaluate(environment),
+            ExprEnum::Var(x) => x.evaluate(environment),
+            ExprEnum::Assign(x) => x.evaluate(environment),
+        }
     }
 }
 
-make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
+impl fmt::Display for ExprEnum {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExprEnum::Binary(x) => write!(f, "{}", x),
+            ExprEnum::Grouping(x) => write!(f, "{}", x),
+            ExprEnum::Literal(x) => write!(f, "{}", x),
+            ExprEnum::Unary(x) => write!(f, "{}", x),
+            ExprEnum::Var(x) => write!(f, "{}", x),
+            ExprEnum::Assign(x) => write!(f, "{}", x),
+        }
+    }
+}
 
-impl<T: Expr, U: Expr> Expr for Binary<T, U> {
-    fn evaluate(&self) -> Result<Value, RuntimeError> {
-        let left: Value = match self.left.evaluate() {
+pub trait Expr: std::fmt::Display {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError>;
+}
+
+impl Expr for Box<dyn Expr> {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        (**self).evaluate(environment)
+    }
+}
+
+make_expr!(Binary, left: ExprEnum, operator: Token, right: ExprEnum);
+
+impl Expr for Binary {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        let left: Value = match self.left.evaluate(environment) {
             Ok(x) => x,
             Err(x) => return Err(x)
         };
-        let right: Value  = match self.right.evaluate() {
+        let right: Value  = match self.right.evaluate(environment) {
             Ok(x) => x,
             Err(x) => return Err(x)
         };
@@ -88,21 +125,21 @@ impl<T: Expr, U: Expr> Expr for Binary<T, U> {
     }
 }
 
-impl<T: Expr, U: Expr> fmt::Display for Binary<T, U> {
+impl fmt::Display for Binary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
     }
 }
 
-make_expr!(Grouping<T: Expr>, expression: T);
+make_expr!(Grouping, expression: ExprEnum);
 
-impl<T: Expr> Expr for Grouping<T> {
-    fn evaluate(&self) -> Result<Value, RuntimeError> {
-        self.expression.evaluate()
+impl Expr for Grouping {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        self.expression.evaluate(environment)
     }
 }
 
-impl<T: Expr + fmt::Display> fmt::Display for Grouping<T> {
+impl fmt::Display for Grouping {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "(group {})", &self.expression)
     }
@@ -111,7 +148,7 @@ impl<T: Expr + fmt::Display> fmt::Display for Grouping<T> {
 make_expr!(Literal, value: Value);
 
 impl Expr for Literal {
-    fn evaluate(&self) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, _environment: &mut Environment) -> Result<Value, RuntimeError> {
         Ok(self.value.clone())
     }
 }
@@ -122,11 +159,11 @@ impl fmt::Display for Literal {
     }
 }
 
-make_expr!(Unary<T: Expr>, operator: Token, right: T);
+make_expr!(Unary, operator: Token, right: ExprEnum);
 
-impl<T: Expr> Expr for Unary<T> {
-    fn evaluate(&self) -> Result<Value, RuntimeError> {
-        let right: Value  = match self.right.evaluate() {
+impl Expr for Unary {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        let right: Value  = match self.right.evaluate(environment) {
             Ok(x) => x,
             Err(x) => return Err(x)
         };
@@ -145,16 +182,49 @@ impl<T: Expr> Expr for Unary<T> {
     }
 }
 
-impl<T: Expr + fmt::Display> fmt::Display for Unary<T> {
+impl fmt::Display for Unary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({} {})", &self.operator.lexeme, &self.right)
     }
 }
 
+make_expr!(Var, name: Token);
+
+impl Expr for Var {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        environment.get(self.name.clone())
+    }
+}
+
+impl fmt::Display for Var {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({})", &self.name.lexeme)
+    }
+}
+
+make_expr!(Assign, name: Token, value: ExprEnum);
+
+impl Expr for Assign {
+    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+        match self.value.evaluate(environment) {
+            Ok(x) => environment.assign(self.name.clone(), x),
+            Err(x) => Err(x)
+        }
+    }
+}
+
+impl fmt::Display for Assign {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} = {}", &self.name.lexeme, &self.value)
+    }
+}
+
+
 #[cfg(test)]
 mod tests_expr {
   use std::fmt;
 
+  use crate::environment::Environment;
   use crate::expr::Expr;
   use crate::make_expr; // from mod utils
   use crate::runtime_error::RuntimeError;
@@ -168,7 +238,7 @@ mod tests_expr {
     make_expr!(Literal, value:u8);
 
     impl Expr for Literal {
-      fn evaluate(&self) -> Result<Value, RuntimeError> {
+      fn evaluate(&self, _environement: &mut Environment) -> Result<Value, RuntimeError> {
         Ok(Value::Nil)
       }
     }
@@ -184,7 +254,7 @@ mod tests_expr {
     make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
     impl<T: Expr, U:Expr> Expr for Binary<T, U> {
-      fn evaluate(&self) -> Result<Value, RuntimeError> {
+      fn evaluate(&self, _environement: &mut Environment) -> Result<Value, RuntimeError> {
         Ok(Value::Nil)
       }
     }

@@ -1,5 +1,7 @@
-use crate::Lox;
-use crate::expr::{Expr, Binary, Grouping, Literal, Unary};
+use core::panic;
+
+use crate::{Lox, stmt, expr};
+use crate::expr::{ExprEnum, Binary, Grouping, Literal, Unary};
 use crate::stmt::{Stmt, Print, Expression};
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -18,13 +20,27 @@ impl Parser {
     pub fn parse(&mut self) -> Vec<Box<dyn Stmt>> {
         let mut statements: Vec<Box<dyn Stmt>> = Vec::new();
         while !self.is_at_end() {
-            statements.push(self.statement());
+            statements.push(self.declaration());
         }
         return statements
     }
 
-    pub fn expression(&mut self) -> Box<dyn Expr> {
-        self.equality()
+    pub fn expression(&mut self) -> ExprEnum {
+        self.assignment()
+    }
+
+    pub fn declaration(&mut self) -> Box<dyn Stmt> {
+        //try {
+        let token: &Token = self.peek();
+        if token.token_type == TokenType::Var {
+            self.advance();
+            return self.var_declaration();
+        } // consider changing to match
+        return self.statement();
+        //} catch (ParseError error) {
+        //    synchronize();
+        //    return null;
+        //}
     }
 
     pub fn statement(&mut self) -> Box<dyn Stmt> {
@@ -37,27 +53,66 @@ impl Parser {
 
     pub fn print_statement(&mut self) -> Box<dyn Stmt> {
         self.advance();
-        let value: Box<dyn Expr> = self.expression();
+        let value: ExprEnum = self.expression();
         self.consume(&TokenType::SemiColon, "Expect ';' after value.");
         Box::new(Print {expression: value})
     }
 
+    pub fn var_declaration(&mut self) -> Box<dyn Stmt> {
+        let name: Token = self.consume(&TokenType::Identifier("".into()), "Expect variable name.").clone();
+
+        let token: &Token = self.peek();
+
+        let initializer: ExprEnum = match token.token_type {
+            TokenType::Equal => {
+                self.advance();
+                self.expression()
+            },
+            _ => ExprEnum::Literal(Box::new(Literal {value: Value::Nil}))
+        };
+
+        self.consume(&TokenType::SemiColon, "Expect ';' after variable declaration.");
+
+        return Box::new(stmt::Var { name: name, initializer });
+    }
+
     pub fn expression_statement(&mut self) -> Box<dyn Stmt> {
-        let value: Box<dyn Expr> = self.expression();
+        let value: ExprEnum = self.expression();
         self.consume(&TokenType::SemiColon, "Expect ';' after value.");
         Box::new(Expression {expression: value})
     }
 
-    pub fn equality(&mut self) -> Box<dyn Expr> {
-        let mut expr: Box<dyn Expr> = self.comparison();
+    pub fn assignment(&mut self) -> ExprEnum {
+        let expr: ExprEnum = self.equality();
+
+        let token: &Token = self.peek();
+        match token.token_type {
+            TokenType::Equal => {
+                let equals: Token = token.clone();
+                self.advance();
+                let value: ExprEnum = self.assignment();
+                match expr {
+                    ExprEnum::Var(x) => {
+                        let name: Token = x.name;
+                        return ExprEnum::Assign(Box::new(expr::Assign {name, value}));
+                    },
+                    _ => panic!("{} {}", equals, "Invalid assignment target.")
+                }
+            },
+            _ => return expr
+        }
+    }
+
+    pub fn equality(&mut self) -> ExprEnum {
+        let mut expr: ExprEnum = self.comparison();
         loop {
             let token: &Token = self.peek();
             match &token.token_type {
                 TokenType::BangEqual | TokenType::EqualEqual => {
                     let operator: Token = token.clone();
                     self.advance();
-                    let right: Box<dyn Expr> = self.comparison();
-                    expr = Box::new(Binary {left: expr, operator, right});
+                    let right: ExprEnum = self.comparison();
+                    expr = ExprEnum::Binary(Box::new(Binary {left: expr, operator, right}));
                 },
                 _ => break
             }
@@ -65,16 +120,16 @@ impl Parser {
         return expr
     }
 
-    pub fn comparison(&mut self) -> Box<dyn Expr> {
-        let mut expr: Box<dyn Expr> = self.term();
+    pub fn comparison(&mut self) -> ExprEnum {
+        let mut expr: ExprEnum = self.term();
         loop {
             let token: &Token = self.peek();
             match &token.token_type {
                 &TokenType::Greater | &TokenType::GreaterEqual | &TokenType::Less | &TokenType::LessEqual => {
                     let operator: Token = token.clone();
                     self.advance();
-                    let right: Box<dyn Expr> = self.term();
-                    expr = Box::new(Binary {left: expr, operator, right});
+                    let right: ExprEnum = self.term();
+                    expr = ExprEnum::Binary(Box::new(Binary {left: expr, operator, right}));
                 },
                 _ => break
             }
@@ -82,33 +137,33 @@ impl Parser {
         return expr
     }
 
-    pub fn term(&mut self) -> Box<dyn Expr> {
-        let mut expr: Box<dyn Expr> = self.factor();
+    pub fn term(&mut self) -> ExprEnum {
+        let mut expr: ExprEnum = self.factor();
         loop {
             let token: &Token = self.peek();
             match &token.token_type {
                 &TokenType::Minus | &TokenType::Plus => {
                     let operator: Token = token.clone();
                     self.advance();
-                    let right: Box<dyn Expr> = self.factor();
-                    expr = Box::new(Binary {left: expr, operator, right});
+                    let right: ExprEnum = self.factor();
+                    expr = ExprEnum::Binary(Box::new(Binary {left: expr, operator, right}));
                 },
                 _ => break
             }
         }
-    return expr
+        return expr
     }
 
-    pub fn factor(&mut self) -> Box<dyn Expr> {
-        let mut expr: Box<dyn Expr> = self.unary();
+    pub fn factor(&mut self) -> ExprEnum {
+        let mut expr: ExprEnum = self.unary();
         loop {
             let token: &Token = self.peek();
             match &token.token_type {
                 TokenType::Slash | TokenType::Star => {
                     let operator: Token = token.clone();
                     self.advance();
-                    let right: Box<dyn Expr> = self.unary();
-                    expr = Box::new(Binary {left: expr, operator, right});
+                    let right: ExprEnum = self.unary();
+                    expr = ExprEnum::Binary(Box::new(Binary {left: expr, operator, right}));
                 },
                 _ => break
             }
@@ -116,50 +171,55 @@ impl Parser {
         return expr
     }
     
-    pub fn unary(&mut self) -> Box<dyn Expr> {
+    pub fn unary(&mut self) -> ExprEnum {
         let token: &Token = self.peek();
         match &token.token_type {
             TokenType::Bang | TokenType::Minus => {
                 let operator: Token = token.clone();
                 self.advance();
-                let right: Box<dyn Expr> = self.unary();
-                return Box::new(Unary {operator, right});
+                let right: ExprEnum = self.unary();
+                return ExprEnum::Unary(Box::new(Unary {operator, right}));
             },
             _ => return self.primary(),
         }
     }
 
-    pub fn primary(&mut self) -> Box<dyn Expr> {
+    pub fn primary(&mut self) -> ExprEnum {
         let token: &Token = self.peek();
         match &token.token_type {
             TokenType::False => {
                 self.advance();
-                return Box::new(Literal {value: Value::Bool(false)})
+                return ExprEnum::Literal(Box::new(Literal {value: Value::Bool(false)}))
                 },
             TokenType::True => {
                 self.advance();
-                return Box::new(Literal {value: Value::Bool(true)})
+                return ExprEnum::Literal(Box::new(Literal {value: Value::Bool(true)}))
                 },
             TokenType::Nil => {
                 self.advance();
-                return Box::new(Literal {value: Value::Nil})
+                return ExprEnum::Literal(Box::new(Literal {value: Value::Nil}))
                 },
             TokenType::String(x) => {
                 let value: String = x.clone();
                 self.advance();
-                return Box::new(Literal {value: Value::String(value)})
+                return ExprEnum::Literal(Box::new(Literal {value: Value::String(value)}))
                 },
             TokenType::Number(x) => {
                 let value: f32 = x.clone();
                 self.advance();
-                return Box::new(Literal {value: Value::Number(value)})
+                return ExprEnum::Literal(Box::new(Literal {value: Value::Number(value)}))
                 },
             TokenType::LeftParen => {
                 self.advance();
-                let expression: Box<dyn Expr> = self.expression();
+                let expression: ExprEnum = self.expression();
                 self.consume(&TokenType::RightParen, "Expect ')' after expression.");
-                return Box::new(Grouping {expression})
+                return ExprEnum::Grouping(Box::new(Grouping {expression}))
                 },
+            TokenType::Identifier(_) => {
+                let name: Token = token.clone();
+                self.advance();
+                return ExprEnum::Var(Box::new(expr::Var {name}))
+            }
             _ => panic!("{}", &self.peek().token_type)
         }
     }
@@ -168,7 +228,7 @@ impl Parser {
         if self.is_at_end() {
             return false;
         }
-        &self.peek().token_type == token_type
+        std::mem::discriminant(&self.peek().token_type) == std::mem::discriminant(token_type)
     }
 
     pub fn advance(&mut self) -> &Token {
@@ -190,7 +250,7 @@ impl Parser {
         self.tokens.get(self.curr - 1).unwrap()
     }
 
-    pub fn consume (&mut self, token_type: &TokenType, message: &str) -> &Token {
+    pub fn consume(&mut self, token_type: &TokenType, message: &str) -> &Token {
         if self.check(token_type) {
             self.advance()
         }
@@ -240,7 +300,6 @@ mod tests {
         scanner.scan_tokens();
 
         let mut parser: Parser = Parser::new(scanner.tokens);
-
         for statement in parser.parse() {
             assert_eq!(statement.to_string(), expected);
         }
@@ -249,8 +308,7 @@ mod tests {
     #[test]
     fn parse_short_expr() {
         check_parse(
-            "// Test
-                2 + 3 * 5 / (1 + 2) > 7;",
+            "2 + 3 * 5 / (1 + 2) > 7;",
             "(> (+ 2 (/ (* 3 5) (group (+ 1 2)))) 7)"
         )
     }

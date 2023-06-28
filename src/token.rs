@@ -33,7 +33,7 @@ mod tests {
             lexeme: "lexeme".to_string(),
             line: 1
         };
-        assert_eq!(token.to_string(), "String lexeme String");
+        assert_eq!(token.to_string(), "String(String) lexeme String");
         let token: Token = Token {
             token_type: TokenType::And,
             lexeme: "and".to_string(),

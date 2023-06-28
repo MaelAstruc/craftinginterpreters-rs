@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::process;
 
+pub mod environment;
 pub mod expr;
 pub mod interpreter;
 pub mod utils;
@@ -63,15 +64,17 @@ impl Lox {
     pub fn run(&mut self, code: String) {
         let mut scanner: Scanner = Scanner::new(code);
         scanner.scan_tokens();
-        
+
         let mut parser: Parser = Parser::new(scanner.tokens);
         let statements: Vec<Box<dyn Stmt>> = parser.parse();
 
         if self.had_error {
             return
         }
+        
+        let mut interpreter = Interpreter::new();
 
-        Interpreter::interpret(self, statements)
+        Interpreter::interpret(&mut interpreter, self, statements)
     }
 
     fn error(line: u32, message: &str) {

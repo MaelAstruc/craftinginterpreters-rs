@@ -2,17 +2,24 @@
 #[path = "expr.rs"] mod expr;
 
 use crate::Lox;
+use crate::environment::Environment;
 use crate::value::Value;
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
 use crate::stmt::Stmt;
 
-pub struct Interpreter {}
+pub struct Interpreter {
+    pub environment: Environment
+}
 
 impl Interpreter {
-    pub fn interpret (lox: &mut Lox, statements: Vec<Box<dyn Stmt>>) {
+    pub fn new() -> Interpreter {
+        Interpreter { environment: Environment::new() }
+    }
+
+    pub fn interpret (&mut self, lox: &mut Lox, statements: Vec<Box<dyn Stmt>>) {
         for statement in statements {
-            match statement.execute() {
+            match statement.execute(self) {
                 Ok(_) => (),
                 Err(x) => lox.runtime_error(x)
             }
