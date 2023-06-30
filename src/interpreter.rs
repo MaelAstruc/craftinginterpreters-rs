@@ -1,6 +1,9 @@
 #[macro_use]
 #[path = "expr.rs"] mod expr;
 
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::Lox;
 use crate::environment::Environment;
 use crate::value::Value;
@@ -9,17 +12,17 @@ use crate::token::Token;
 use crate::stmt::Stmt;
 
 pub struct Interpreter {
-    pub environment: Environment
+    pub environment: Rc<RefCell<Environment>>
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter { environment: Environment::new() }
+        Interpreter { environment: Rc::new(RefCell::new(Environment::new(None))) }
     }
 
     pub fn interpret (&mut self, lox: &mut Lox, statements: Vec<Box<dyn Stmt>>) {
         for statement in statements {
-            match statement.execute(self) {
+            match statement.execute(self.environment.clone()) {
                 Ok(_) => (),
                 Err(x) => lox.runtime_error(x)
             }

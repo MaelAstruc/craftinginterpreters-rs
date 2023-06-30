@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 use crate::environment::Environment;
 use crate::interpreter::Interpreter;
@@ -19,7 +21,7 @@ pub enum ExprEnum {
 }
 
 impl Expr for ExprEnum {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         match self {
             ExprEnum::Binary(x) => x.evaluate(environment),
             ExprEnum::Grouping(x) => x.evaluate(environment),
@@ -45,11 +47,11 @@ impl fmt::Display for ExprEnum {
 }
 
 pub trait Expr: std::fmt::Display {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError>;
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
 }
 
 impl Expr for Box<dyn Expr> {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         (**self).evaluate(environment)
     }
 }
@@ -57,8 +59,8 @@ impl Expr for Box<dyn Expr> {
 make_expr!(Binary, left: ExprEnum, operator: Token, right: ExprEnum);
 
 impl Expr for Binary {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        let left: Value = match self.left.evaluate(environment) {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        let left: Value = match self.left.evaluate(environment.clone()) {
             Ok(x) => x,
             Err(x) => return Err(x)
         };
@@ -134,7 +136,7 @@ impl fmt::Display for Binary {
 make_expr!(Grouping, expression: ExprEnum);
 
 impl Expr for Grouping {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         self.expression.evaluate(environment)
     }
 }
@@ -148,7 +150,7 @@ impl fmt::Display for Grouping {
 make_expr!(Literal, value: Value);
 
 impl Expr for Literal {
-    fn evaluate(&self, _environment: &mut Environment) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         Ok(self.value.clone())
     }
 }
@@ -162,7 +164,7 @@ impl fmt::Display for Literal {
 make_expr!(Unary, operator: Token, right: ExprEnum);
 
 impl Expr for Unary {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         let right: Value  = match self.right.evaluate(environment) {
             Ok(x) => x,
             Err(x) => return Err(x)
@@ -191,8 +193,8 @@ impl fmt::Display for Unary {
 make_expr!(Var, name: Token);
 
 impl Expr for Var {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        environment.get(self.name.clone())
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        environment.as_ref().borrow_mut().get(self.name.clone())
     }
 }
 
@@ -205,9 +207,9 @@ impl fmt::Display for Var {
 make_expr!(Assign, name: Token, value: ExprEnum);
 
 impl Expr for Assign {
-    fn evaluate(&self, environment: &mut Environment) -> Result<Value, RuntimeError> {
-        match self.value.evaluate(environment) {
-            Ok(x) => environment.assign(self.name.clone(), x),
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        match self.value.evaluate(environment.clone()) {
+            Ok(x) => environment.as_ref().borrow_mut().assign(self.name.clone(), x),
             Err(x) => Err(x)
         }
     }
@@ -222,7 +224,9 @@ impl fmt::Display for Assign {
 
 #[cfg(test)]
 mod tests_expr {
-  use std::fmt;
+  use std::cell::RefCell;
+use std::fmt;
+use std::rc::Rc;
 
   use crate::environment::Environment;
   use crate::expr::Expr;
@@ -238,7 +242,7 @@ mod tests_expr {
     make_expr!(Literal, value:u8);
 
     impl Expr for Literal {
-      fn evaluate(&self, _environement: &mut Environment) -> Result<Value, RuntimeError> {
+      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         Ok(Value::Nil)
       }
     }
@@ -254,7 +258,7 @@ mod tests_expr {
     make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
     impl<T: Expr, U:Expr> Expr for Binary<T, U> {
-      fn evaluate(&self, _environement: &mut Environment) -> Result<Value, RuntimeError> {
+      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         Ok(Value::Nil)
       }
     }

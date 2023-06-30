@@ -47,6 +47,10 @@ impl Parser {
         let token: &Token = self.peek();
         match token.token_type {
             TokenType::Print => self.print_statement(),
+            TokenType::LeftBrace => {
+                self.advance();
+                Box::new(stmt::Block { statements: self.block() })
+            },
             _ => self.expression_statement()
         }
     }
@@ -82,6 +86,22 @@ impl Parser {
         Box::new(Expression {expression: value})
     }
 
+    pub fn block(&mut self) -> Vec<Box<dyn Stmt>> {
+        let mut statements: Vec<Box<dyn Stmt>> = Vec::new();
+    
+        loop {
+            let token = self.peek();
+            match token.token_type {
+                TokenType::RightBrace => break,
+                TokenType::Eof => break,
+                _ => statements.push(self.declaration())
+            }
+        }
+
+        self.consume(&TokenType::RightBrace, "Expect '}' after block.".into());
+        return statements;
+    }
+    
     pub fn assignment(&mut self) -> ExprEnum {
         let expr: ExprEnum = self.equality();
 
