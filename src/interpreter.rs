@@ -38,10 +38,10 @@ impl Interpreter {
         panic!("{} {}, found {:?} and {:?}", message, token, left, right)
     }
     
-    pub fn check_bool(value: Value) -> bool {
+    pub fn check_bool(value: &Value) -> &bool {
         match value {
             Value::Bool(x) => x,
-            _ => true
+            _ => &true
         }
     }
         

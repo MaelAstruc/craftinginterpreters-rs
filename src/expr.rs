@@ -17,7 +17,8 @@ pub enum ExprEnum {
     Literal(Box<Literal>),
     Unary(Box<Unary>),
     Var(Box<Var>),
-    Assign(Box<Assign>)
+    Assign(Box<Assign>),
+    Logic(Box<Logic>)
 }
 
 impl Expr for ExprEnum {
@@ -29,6 +30,7 @@ impl Expr for ExprEnum {
             ExprEnum::Unary(x) => x.evaluate(environment),
             ExprEnum::Var(x) => x.evaluate(environment),
             ExprEnum::Assign(x) => x.evaluate(environment),
+            ExprEnum::Logic(x) => x.evaluate(environment),
         }
     }
 }
@@ -42,6 +44,7 @@ impl fmt::Display for ExprEnum {
             ExprEnum::Unary(x) => write!(f, "{}", x),
             ExprEnum::Var(x) => write!(f, "{}", x),
             ExprEnum::Assign(x) => write!(f, "{}", x),
+            ExprEnum::Logic(x) => write!(f, "{}", x),
         }
     }
 }
@@ -178,7 +181,7 @@ impl Expr for Unary {
                     x => Err(Interpreter::check_operand(self.operator.clone(), "expected a number", x))
                 }
                 },
-            TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(right))),
+            TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(&right))),
             _ => panic!("Expected tokens: {}, found token ({})", "(-) or (!)", self.operator.clone())
         }
     }
@@ -221,12 +224,32 @@ impl fmt::Display for Assign {
     }
 }
 
+make_expr!(Logic, left: ExprEnum, operator: Token, right: ExprEnum);
+
+impl Expr for Logic {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> { 
+        match self.left.evaluate(environment.clone()) {
+            Ok(left) => match self.operator.token_type {
+                TokenType::Or if *Interpreter::check_bool(&left) => Ok(left),
+                TokenType::And if !Interpreter::check_bool(&left) => Ok(left),
+                _ => self.right.evaluate(environment)
+            },
+            Err(x) => Err(x)
+        }
+    }
+}
+
+impl fmt::Display for Logic {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {} {}", &self.left, &self.operator, &self.right)
+    }
+}
 
 #[cfg(test)]
-mod tests_expr {
+  mod tests_expr {
   use std::cell::RefCell;
-use std::fmt;
-use std::rc::Rc;
+  use std::fmt;
+  use std::rc::Rc;
 
   use crate::environment::Environment;
   use crate::expr::Expr;

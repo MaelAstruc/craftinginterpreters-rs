@@ -3,8 +3,9 @@ use std::fmt;
 use std::rc::Rc;
 
 use crate::environment::Environment;
+use crate::interpreter::Interpreter;
 use crate::make_expr; // from mod utils
-use crate::expr::Expr;
+use crate::expr::{Expr, ExprEnum};
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
 
@@ -92,5 +93,70 @@ impl fmt::Display for Block {
             message += statement.to_string().as_ref();
         }
         write!(f, "{{ \n {} \n }}", message)
+    }
+}
+
+pub struct If<T: Stmt, U: Stmt> {
+    pub condition: ExprEnum,
+    pub then_branch: T,
+    pub else_branch: Option<U>
+}
+
+impl<T: Stmt, U: Stmt> Stmt for If<T, U> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+        match self.condition.evaluate(environment.clone()) {
+            Ok(x) if *Interpreter::check_bool(&x) => {
+                self.then_branch.execute(environment)
+            },
+            Ok(_) => {
+                match &self.else_branch {
+                    Some(x) => x.execute(environment),
+                    None => Ok(())
+                }
+            },
+            Err(x) => return Err(x)
+        }
+    }
+}
+
+impl<T: Stmt, U: Stmt> fmt::Display for If<T, U> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.else_branch {
+            Some(x) =>write!(f, "if ({}) \n then {{\n{}\n}} \n else {{\n{}\n}}", &self.condition, &self.then_branch, x),
+            None => write!(f, "if ({}) \n then {{\n{}\n}}", &self.condition, &self.then_branch)
+        }
+        
+    }
+}
+
+pub struct While<T: Stmt> {
+    pub condition: ExprEnum,
+    pub body: T
+}
+
+impl<T: Stmt> Stmt for While<T> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+        loop {
+            match self.condition.evaluate(environment.clone()) {
+                Ok(x) => {
+                    if *Interpreter::check_bool(&x) {
+                        match self.body.execute(environment.clone()) {
+                            Ok(_) => (),
+                            Err(x) => return Err(x)
+                        }
+                    }
+                    else {
+                        return Ok(())
+                    }
+                },
+                Err(x) => return Err(x)
+            }
+        }
+    }
+}
+
+impl<T: Stmt> fmt::Display for While<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "while {} {}", &self.condition, &self.body)
     }
 }
