@@ -6,7 +6,6 @@ pub mod environment;
 pub mod expr;
 pub mod interpreter;
 pub mod callable;
-pub mod utils;
 pub mod parser;
 pub mod runtime_error;
 pub mod scanner;
