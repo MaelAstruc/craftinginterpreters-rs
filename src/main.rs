@@ -5,6 +5,7 @@ use std::process;
 pub mod environment;
 pub mod expr;
 pub mod interpreter;
+pub mod callable;
 pub mod utils;
 pub mod parser;
 pub mod runtime_error;
@@ -16,7 +17,6 @@ pub mod value;
 
 use interpreter::Interpreter;
 use runtime_error::RuntimeError;
-use stmt::Stmt;
 
 use crate::parser::Parser;
 use crate::scanner::Scanner;
@@ -31,7 +31,7 @@ pub struct Lox {
 impl Lox {
     fn main(&mut self, args: &mut [&str]) {
         if args.len() > 1 {
-            println!("Usage: stata [script]")
+            println!("Usage: Lox [script]")
         } else if args.len() == 1 {
             self.run_file(args[0])
         } else {
@@ -66,7 +66,7 @@ impl Lox {
         scanner.scan_tokens();
 
         let mut parser: Parser = Parser::new(scanner.tokens);
-        let statements: Vec<Box<dyn Stmt>> = parser.parse();
+        let statements: Vec<Box<stmt::StmtEnum>> = parser.parse();
 
         if self.had_error {
             return
@@ -86,13 +86,13 @@ impl Lox {
             Self::report(token.line, " at the end", &message)
         }
         else {
-            let at: String = " at'".to_owned() + token.lexeme.as_ref() + "'";
+            let at: String = " at '".to_owned() + token.lexeme.as_ref() + "'";
             Self::report(token.line, at.as_str(), &message)
         }
     }
 
     fn runtime_error(&mut self, error: RuntimeError) {
-        println!("{} \n[line {}]", error.message, error.token.line);
+        println!("[line {}]\n{}", error.token.line, error.message);
         self.had_runtime_error = true;
     }
 

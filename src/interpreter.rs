@@ -5,22 +5,34 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::Lox;
+use crate::callable::{LoxCallable, LoxClock};
 use crate::environment::Environment;
 use crate::value::Value;
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
-use crate::stmt::Stmt;
+use crate::stmt::{Stmt, StmtEnum};
 
 pub struct Interpreter {
+    pub globals: Rc<RefCell<Environment>>,
     pub environment: Rc<RefCell<Environment>>
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
-        Interpreter { environment: Rc::new(RefCell::new(Environment::new(None))) }
+        let mut globals = Environment::new(None);
+        
+        globals.define(
+            "clock".into(),
+            Value::Callable(
+                LoxCallable::LoxClock(Rc::new(LoxClock{ }))
+            )
+        );
+
+        let globals: Rc<RefCell<Environment>> = Rc::new(RefCell::new(globals));
+        Interpreter {globals: globals.clone(), environment: globals.clone() }
     }
 
-    pub fn interpret (&mut self, lox: &mut Lox, statements: Vec<Box<dyn Stmt>>) {
+    pub fn interpret (&mut self, lox: &mut Lox, statements: Vec<Box<StmtEnum>>) {
         for statement in statements {
             match statement.execute(self.environment.clone()) {
                 Ok(_) => (),
@@ -35,7 +47,7 @@ impl Interpreter {
     }
     
     pub fn check_operands(token: Token, message: &str, left: Value, right: Value) -> RuntimeError {
-        panic!("{} {}, found {:?} and {:?}", message, token, left, right)
+        panic!("{} {}, found {} and {}", message, token, left, right)
     }
     
     pub fn check_bool(value: &Value) -> &bool {
@@ -51,10 +63,12 @@ impl Interpreter {
             (Value::String(x), Value::String(y)) => x==y,
             (Value::Bool(x), Value::Bool(y)) => x==y,
             (Value::Nil, Value::Nil) => true,
+            (Value::Callable(_), Value::Callable(_)) => false,
             (Value::Bool(_), _) => false,
             (Value::Number(_), _) => false,
             (Value::String(_), _) => false,
-            (Value::Nil, _) => false
+            (Value::Nil, _) => false,
+            (Value::Callable(_), _) => false
         }
     }
 }

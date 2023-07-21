@@ -2,124 +2,202 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
+use crate::callable::{LoxFunction, LoxCallable};
 use crate::environment::Environment;
 use crate::interpreter::Interpreter;
-use crate::make_expr; // from mod utils
 use crate::expr::{Expr, ExprEnum};
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
+use crate::value::Value;
 
-pub trait Stmt: std::fmt::Display {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError>;
+#[derive(Clone)]
+pub enum StmtEnum {
+    Expression(Box<Expression>),
+    Print(Box<Print>),
+    Var(Box<Var>),
+    Block(Box<Block>),
+    Function(Box<Function>),
+    If(Box<If>),
+    While(Box<While>)
 }
 
-impl Stmt for Box<dyn Stmt> {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
-        (**self).execute(environment)
+impl Stmt for StmtEnum {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        match self {
+            StmtEnum::Block(x) => x.execute(environment),
+            StmtEnum::Expression(x) => x.execute(environment),
+            StmtEnum::Function(x) => x.execute(environment),
+            StmtEnum::If(x) => x.execute(environment),
+            StmtEnum::Print(x) => x.execute(environment),
+            StmtEnum::Var(x) => x.execute(environment),
+            StmtEnum::While(x) => x.execute(environment)
+        }
     }
 }
 
-make_expr!(Expression<T: Expr>, expression: T);
+impl fmt::Display for StmtEnum {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            StmtEnum::Block(x) => write!(f, "{}", x),
+            StmtEnum::Expression(x) => write!(f, "{}", x),
+            StmtEnum::Function(x) => write!(f, "{}", x),
+            StmtEnum::If(x) => write!(f, "{}", x),
+            StmtEnum::Print(x) => write!(f, "{}", x),
+            StmtEnum::Var(x) => write!(f, "{}", x),
+            StmtEnum::While(x) => write!(f, "{}", x)
+        }
+    }
+}
 
-impl<T: Expr> Stmt for Expression<T> {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+pub trait Stmt: std::fmt::Display {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
+}
+
+#[derive(Clone)]
+pub struct Expression {
+    pub expression: ExprEnum
+}
+
+impl Stmt for Expression {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         match self.expression.evaluate(environment) {
-            Ok(_) => Ok(()),
+            Ok(x) => Ok(x),
             Err(x) => Err(x)
         }
     } 
 }
 
-impl<T: Expr + fmt::Display> fmt::Display for Expression<T> {
+impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", &self.expression)
     }
 }
 
-make_expr!(Print<T: Expr>, expression: T);
+#[derive(Clone)]
+pub struct Print {
+    pub expression: ExprEnum
+}
 
-impl<T: Expr> Stmt for Print<T> {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+impl Stmt for Print {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         match self.expression.evaluate(environment) {
-            Ok(x) => Ok(println!("{}", x)),
-            Err(x) => Err(x)
-        }
-    }
-}
-
-impl<T: Expr + fmt::Display> fmt::Display for Print<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.expression)
-    }
-}
-
-make_expr!(Var<T: Expr>, name: Token, initializer: T);
-
-impl<T: Expr> Stmt for Var<T> {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
-        match self.initializer.evaluate(environment.clone()) {
-            Ok(x) => Ok(environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), x)),
-            Err(x) => Err(x)
-        }
-    }
-}
-
-impl<T: Expr + fmt::Display> fmt::Display for Var<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}: {}", &self.name, &self.initializer)
-    }
-}
-
-make_expr!(Block, statements: Vec<Box<dyn Stmt>>);
-
-impl Stmt for Block {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
-        let block_env = Environment::new(Some(environment));
-        let block_env_ref = Rc::new(RefCell::new(block_env));
-        for statement in &self.statements {
-            match statement.execute(block_env_ref.clone()) {
-                Ok(_) => (),
-                Err(x) => return Err(x)
-            }
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Display for Block {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut message = "".to_string();
-        for statement in &self.statements {
-            message += statement.to_string().as_ref();
-        }
-        write!(f, "{{ \n {} \n }}", message)
-    }
-}
-
-pub struct If<T: Stmt, U: Stmt> {
-    pub condition: ExprEnum,
-    pub then_branch: T,
-    pub else_branch: Option<U>
-}
-
-impl<T: Stmt, U: Stmt> Stmt for If<T, U> {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
-        match self.condition.evaluate(environment.clone()) {
-            Ok(x) if *Interpreter::check_bool(&x) => {
-                self.then_branch.execute(environment)
+            Ok(x) => {
+                println!("{}", x);
+                Ok(x)
             },
-            Ok(_) => {
-                match &self.else_branch {
-                    Some(x) => x.execute(environment),
-                    None => Ok(())
-                }
+            Err(x) => Err(x)
+        }
+    }
+}
+
+impl fmt::Display for Print {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "print {}", &self.expression)
+    }
+}
+
+#[derive(Clone)]
+pub struct Var {
+    pub name: Token,
+    pub initializer: ExprEnum
+}
+
+impl Stmt for Var {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        match self.initializer.evaluate(environment.clone()) {
+            Ok(x) => {
+                environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), x.clone());
+                Ok(x)
             },
             Err(x) => return Err(x)
         }
     }
 }
 
-impl<T: Stmt, U: Stmt> fmt::Display for If<T, U> {
+impl fmt::Display for Var {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}: {}", &self.name, &self.initializer)
+    }
+}
+
+#[derive(Clone)]
+pub struct Block {
+    pub statements: Vec<Box<StmtEnum>>
+}
+
+impl Stmt for Block {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        let block_env = Environment::new(Some(environment));
+        let block_env_ref = Rc::new(RefCell::new(block_env));
+        let mut value = Value::Nil;
+        for statement in &self.statements {
+            value = statement.execute(block_env_ref.clone())?;
+        }
+        Ok(value)
+    }
+}
+
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut message = "\n".to_string();
+        for statement in &self.statements {
+            message += "\t";
+            message += statement.to_string().as_ref();
+            message += "\n";
+        }
+        write!(f, "{{ {} }}", message)
+    }
+}
+
+#[derive(Clone)]
+pub struct Function {
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub body: Block
+}
+
+impl Stmt for Function {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction{ declaration: self.clone() })));
+        environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), function);
+        return Ok(Value::Nil);
+    }
+}
+
+impl fmt::Display for Function {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} {}", &self.name, &self.body)
+    }
+}
+
+
+#[derive(Clone)]
+pub struct If {
+    pub condition: ExprEnum,
+    pub then_branch: StmtEnum,
+    pub else_branch: Option<StmtEnum>
+}
+
+impl Stmt for If {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+        let mut value = Value::Nil;
+        match self.condition.evaluate(environment.clone()) {
+            Ok(x) if *Interpreter::check_bool(&x) => {
+                value = self.then_branch.execute(environment)?;
+            },
+            Ok(_) => {
+                match &self.else_branch {
+                    Some(x) => value = x.execute(environment)?,
+                    None => ()
+                }
+            },
+            Err(x) => return Err(x)
+        }
+        Ok(value)
+    }
+}
+
+impl fmt::Display for If {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.else_branch {
             Some(x) =>write!(f, "if ({}) \n then {{\n{}\n}} \n else {{\n{}\n}}", &self.condition, &self.then_branch, x),
@@ -129,13 +207,14 @@ impl<T: Stmt, U: Stmt> fmt::Display for If<T, U> {
     }
 }
 
-pub struct While<T: Stmt> {
+#[derive(Clone)]
+pub struct While {
     pub condition: ExprEnum,
-    pub body: T
+    pub body: StmtEnum
 }
 
-impl<T: Stmt> Stmt for While<T> {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<(), RuntimeError> {
+impl Stmt for While {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         loop {
             match self.condition.evaluate(environment.clone()) {
                 Ok(x) => {
@@ -146,16 +225,17 @@ impl<T: Stmt> Stmt for While<T> {
                         }
                     }
                     else {
-                        return Ok(())
+                        break
                     }
                 },
                 Err(x) => return Err(x)
             }
         }
+        Ok(Value::Nil)
     }
 }
 
-impl<T: Stmt> fmt::Display for While<T> {
+impl fmt::Display for While {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "while {} {}", &self.condition, &self.body)
     }

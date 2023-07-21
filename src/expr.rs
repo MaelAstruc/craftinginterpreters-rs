@@ -2,15 +2,15 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
+use crate::callable::LoxCallable;
 use crate::environment::Environment;
 use crate::interpreter::Interpreter;
-use crate::make_expr;  // from mod utils
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
 
-#[warn(dead_code)]
+#[derive(Clone)]
 pub enum ExprEnum {
     Binary(Box<Binary>),
     Grouping(Box<Grouping>),
@@ -18,7 +18,8 @@ pub enum ExprEnum {
     Unary(Box<Unary>),
     Var(Box<Var>),
     Assign(Box<Assign>),
-    Logic(Box<Logic>)
+    Logic(Box<Logic>),
+    Call(Box<Call>)
 }
 
 impl Expr for ExprEnum {
@@ -31,6 +32,7 @@ impl Expr for ExprEnum {
             ExprEnum::Var(x) => x.evaluate(environment),
             ExprEnum::Assign(x) => x.evaluate(environment),
             ExprEnum::Logic(x) => x.evaluate(environment),
+            ExprEnum::Call(x) => x.evaluate(environment)
         }
     }
 }
@@ -45,6 +47,7 @@ impl fmt::Display for ExprEnum {
             ExprEnum::Var(x) => write!(f, "{}", x),
             ExprEnum::Assign(x) => write!(f, "{}", x),
             ExprEnum::Logic(x) => write!(f, "{}", x),
+            ExprEnum::Call(x) => write!(f, "{}", x)
         }
     }
 }
@@ -53,13 +56,12 @@ pub trait Expr: std::fmt::Display {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
 }
 
-impl Expr for Box<dyn Expr> {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
-        (**self).evaluate(environment)
-    }
+#[derive(Clone)]
+pub struct Binary {
+    pub left: ExprEnum,
+    pub operator: Token,
+    pub right: ExprEnum,
 }
-
-make_expr!(Binary, left: ExprEnum, operator: Token, right: ExprEnum);
 
 impl Expr for Binary {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
@@ -136,7 +138,10 @@ impl fmt::Display for Binary {
     }
 }
 
-make_expr!(Grouping, expression: ExprEnum);
+#[derive(Clone)]
+pub struct Grouping {
+    pub expression: ExprEnum
+}
 
 impl Expr for Grouping {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
@@ -150,7 +155,10 @@ impl fmt::Display for Grouping {
     }
 }
 
-make_expr!(Literal, value: Value);
+#[derive(Clone)]
+pub struct Literal {
+    pub value: Value
+}
 
 impl Expr for Literal {
     fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
@@ -164,7 +172,11 @@ impl fmt::Display for Literal {
     }
 }
 
-make_expr!(Unary, operator: Token, right: ExprEnum);
+#[derive(Clone)]
+pub struct Unary {
+    pub operator: Token,
+    pub right: ExprEnum,
+}
 
 impl Expr for Unary {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
@@ -193,7 +205,10 @@ impl fmt::Display for Unary {
     }
 }
 
-make_expr!(Var, name: Token);
+#[derive(Clone)]
+pub struct Var {
+    pub name: Token,
+}
 
 impl Expr for Var {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
@@ -207,7 +222,11 @@ impl fmt::Display for Var {
     }
 }
 
-make_expr!(Assign, name: Token, value: ExprEnum);
+#[derive(Clone)]
+pub struct Assign {
+    pub name: Token,
+    pub value: ExprEnum,
+}
 
 impl Expr for Assign {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
@@ -224,7 +243,12 @@ impl fmt::Display for Assign {
     }
 }
 
-make_expr!(Logic, left: ExprEnum, operator: Token, right: ExprEnum);
+#[derive(Clone)]
+pub struct Logic {
+    pub left: ExprEnum,
+    pub operator: Token,
+    pub right: ExprEnum,
+}
 
 impl Expr for Logic {
     fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> { 
@@ -245,6 +269,51 @@ impl fmt::Display for Logic {
     }
 }
 
+#[derive(Clone)]
+pub struct Call {
+    pub callee: ExprEnum,
+    pub paren: Token,
+    pub arguments: Vec<ExprEnum>,
+}
+
+impl Expr for Call {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> { 
+        let mut arguments: Vec<Value> = Vec::new();
+
+        for argument in &self.arguments { 
+            arguments.push(argument.evaluate(environment.clone())?)
+        }
+
+        match self.callee.evaluate(environment.clone())? {
+            Value::Callable(x) => {
+                match x {
+                    LoxCallable::LoxFunction(y) => {
+                        if arguments.len() != y.arity() {
+                            let message: String = format!("Expected {} arguments but got {}.", y.arity(), arguments.len());
+                            return Err(RuntimeError { token: self.paren.clone(), message })
+                        }
+                        return y.call(environment, arguments);
+                    },
+                    LoxCallable::LoxClock(y) => {
+                        if arguments.len() != y.arity() {
+                            let message: String = format!("Expected {} arguments but got {}.", y.arity(), arguments.len());
+                            return Err(RuntimeError { token: self.paren.clone(), message })
+                        }
+                        return y.call(environment, arguments);
+                    }
+                }
+            },
+            _ => panic!()
+        }
+    }
+}
+
+impl fmt::Display for Call {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "no")
+    }
+}
+/*
 #[cfg(test)]
   mod tests_expr {
   use std::cell::RefCell;
@@ -299,3 +368,4 @@ impl fmt::Display for Logic {
     assert_eq!(binary.to_string(), "(+ 3 5)".to_string());
   }
 }
+*/
