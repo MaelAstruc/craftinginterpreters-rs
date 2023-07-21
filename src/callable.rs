@@ -62,12 +62,10 @@ impl LoxFunction {
 
   pub fn call(&self, environment: Rc<RefCell<Environment>>, arguments: Vec<Value>) -> Result<Value, RuntimeError> {
     let mut local = Environment::new(Some(environment));
-    let mut i: usize = 0;
-    for param in &self.declaration.params {
+    for (i, param) in self.declaration.params.iter().enumerate() {
       let name = &param.lexeme;
       let arg = arguments.get(i).unwrap();
       local.define(name.to_string(), arg.clone());
-      i = i + 1;
     }
     self.declaration.body.execute(Rc::new(RefCell::new(local)))
   }

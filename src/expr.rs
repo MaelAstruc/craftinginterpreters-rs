@@ -292,14 +292,14 @@ impl Expr for Call {
                             let message: String = format!("Expected {} arguments but got {}.", y.arity(), arguments.len());
                             return Err(RuntimeError { token: self.paren.clone(), message })
                         }
-                        return y.call(environment, arguments);
+                        y.call(environment, arguments)
                     },
                     LoxCallable::LoxClock(y) => {
                         if arguments.len() != y.arity() {
                             let message: String = format!("Expected {} arguments but got {}.", y.arity(), arguments.len());
                             return Err(RuntimeError { token: self.paren.clone(), message })
                         }
-                        return y.call(environment, arguments);
+                        y.call(environment, arguments)
                     }
                 }
             },

@@ -109,7 +109,7 @@ impl Stmt for Var {
                 environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), x.clone());
                 Ok(x)
             },
-            Err(x) => return Err(x)
+            Err(x) => Err(x)
         }
     }
 }
@@ -160,7 +160,7 @@ impl Stmt for Function {
     fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction{ declaration: self.clone() })));
         environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), function);
-        return Ok(Value::Nil);
+        Ok(Value::Nil)
     }
 }
 

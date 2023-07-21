@@ -13,7 +13,7 @@ pub struct Scanner {
 impl Scanner {
     pub fn new(source: String) -> Scanner {
         let tokens: Vec<Token> = Vec::new();
-        Scanner {source: source, tokens: tokens, start: 0, current: 0, line: 1}
+        Scanner {source, tokens, start: 0, current: 0, line: 1}
     }
 
     pub fn scan_tokens(&mut self) {
@@ -84,7 +84,7 @@ impl Scanner {
             "true" => self.add_token(TokenType::True),
             "var" => self.add_token(TokenType::Var),
             "while" => self.add_token(TokenType::While),
-            _ => self.add_token(TokenType::Identifier(value.into()))
+            _ => self.add_token(TokenType::Identifier(value))
         };
       }
     
@@ -107,7 +107,7 @@ impl Scanner {
             return false
         }
         self.current += 1;
-        return true
+        true
     }
 
     fn peek(&self) -> char {
@@ -135,13 +135,13 @@ impl Scanner {
    }
 
     fn is_at_end(&self) -> bool {
-        return self.current >= self.source.len();
+        self.current >= self.source.len()
     }
 
     fn advance(&mut self) -> char {
         let next_char: char = self.source.chars().nth(self.current).unwrap();
         self.current += 1;
-        return next_char
+        next_char
     }
 
     fn add_token(&mut self, token_type: TokenType) {

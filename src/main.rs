@@ -30,12 +30,10 @@ pub struct Lox {
 
 impl Lox {
     fn main(&mut self, args: &mut [&str]) {
-        if args.len() > 1 {
-            println!("Usage: Lox [script]")
-        } else if args.len() == 1 {
-            self.run_file(args[0])
-        } else {
-            self.run_prompt()
+        match args.len() {
+            1 => self.run_file(args[0]),
+            2.. => println!("Usage: Lox [script]"),
+            _ => self.run_prompt()
         }
     }
 
@@ -83,11 +81,11 @@ impl Lox {
 
     fn error_token(token: &Token, message: &str) {
         if token.token_type == TokenType::Eof {
-            Self::report(token.line, " at the end", &message)
+            Self::report(token.line, " at the end", message)
         }
         else {
             let at: String = " at '".to_owned() + token.lexeme.as_ref() + "'";
-            Self::report(token.line, at.as_str(), &message)
+            Self::report(token.line, at.as_str(), message)
         }
     }
 

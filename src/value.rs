@@ -15,7 +15,7 @@ impl std::fmt::Display for Value {
       Self::Bool(x) => write!(f, "{}", x),
       Self::Number(x) => write!(f, "{}", x),
       Self::String(x) => write!(f, "\"{}\"", x),
-      Self::Nil => write!(f, "{}", "nil"),
+      Self::Nil => write!(f, "nil"),
       Self::Callable(x) => {
         match x {
             LoxCallable::LoxFunction(y) => write!(f, "{}", y),

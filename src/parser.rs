@@ -14,7 +14,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Parser {
-        Parser {tokens: tokens, curr: 0}
+        Parser {tokens, curr: 0}
     }
 
     pub fn parse(&mut self) -> Vec<Box<StmtEnum>> {
@@ -22,7 +22,7 @@ impl Parser {
         while !self.is_at_end() {
             statements.push(self.declaration());
         }
-        return statements
+        statements
     }
 
     pub fn expression(&mut self) -> ExprEnum {
@@ -35,14 +35,14 @@ impl Parser {
         match token.token_type {
             TokenType::Fun => {
                 self.advance();
-                return self.function("function")
+                self.function("function")
             }
             TokenType::Var => {
                 self.advance();
-                return self.var_declaration()
+                self.var_declaration()
             },
             _ => {
-                return self.statement()
+                self.statement()
             }
         }
         //} catch (ParseError error) {
@@ -115,22 +115,17 @@ impl Parser {
 
         let mut body = self.statement();
 
-        match increment {
-            Some(x) => {
-                body = Box::new(StmtEnum::Block(Box::new(stmt::Block {statements: vec![body, Box::new(StmtEnum::Expression(Box::new(stmt::Expression { expression: x } )))]})))
-            },
-            None => ()
+        if let Some(x) = increment {
+            body = Box::new(StmtEnum::Block(Box::new(stmt::Block {statements: vec![body, Box::new(StmtEnum::Expression(Box::new(stmt::Expression { expression: x } )))]})))
         }
 
         body = Box::new(StmtEnum::While(Box::new(stmt::While { condition, body: *body })));
 
-        match initializer {
-            Some(x) => {
-                body = Box::new(StmtEnum::Block(Box::new(stmt::Block {statements: vec![x, body]})))
-            },
-            None => ()
+        if let Some(x) = initializer {
+            body = Box::new(StmtEnum::Block(Box::new(stmt::Block {statements: vec![x, body]})))
         }
-        return body
+
+        body
     }
 
     pub fn if_statement(&mut self) -> Box<StmtEnum> {
@@ -143,7 +138,7 @@ impl Parser {
             TokenType::Else => Some(*self.statement()),
             _ => None
         };
-        return Box::new(StmtEnum::If(Box::new(stmt::If { condition, then_branch, else_branch})))
+        Box::new(StmtEnum::If(Box::new(stmt::If { condition, then_branch, else_branch})))
     }
 
     pub fn print_statement(&mut self) -> Box<StmtEnum> {
@@ -157,8 +152,7 @@ impl Parser {
         let condition = self.expression();
         self.consume(&TokenType::RightParen, "Expect ')' after condition.");
         let body = *self.statement();
-    
-        return Box::new(StmtEnum::While(Box::new(stmt::While { condition, body })));
+        Box::new(StmtEnum::While(Box::new(stmt::While { condition, body })))
     }
 
     pub fn var_declaration(&mut self) -> Box<StmtEnum> {
@@ -176,7 +170,7 @@ impl Parser {
 
         self.consume(&TokenType::SemiColon, "Expect ';' after variable declaration.");
 
-        return Box::new(StmtEnum::Var(Box::new(stmt::Var { name: name, initializer })));
+        Box::new(StmtEnum::Var(Box::new(stmt::Var { name, initializer })))
     }
 
     pub fn expression_statement(&mut self) -> Box<StmtEnum> {
@@ -204,7 +198,7 @@ impl Parser {
         self.consume(&TokenType::RightParen, "Expect ')' after parameters.");
         self.consume(&TokenType::LeftBrace, &format!("Expect '{{' before {} body.", kind));
         let body = stmt::Block{ statements: self.block() };
-        return Box::new(StmtEnum::Function(Box::new(stmt::Function { name, params, body })));
+        Box::new(StmtEnum::Function(Box::new(stmt::Function { name, params, body })))
     }
 
     pub fn block(&mut self) -> Vec<Box<StmtEnum>> {
@@ -219,8 +213,8 @@ impl Parser {
             }
         }
 
-        self.consume(&TokenType::RightBrace, "Expect '}' after block.".into());
-        return statements;
+        self.consume(&TokenType::RightBrace, "Expect '}' after block.");
+        statements
     }
     
     pub fn assignment(&mut self) -> ExprEnum {
@@ -236,49 +230,39 @@ impl Parser {
                 match expr {
                     ExprEnum::Var(x) => {
                         let name: Token = x.name;
-                        return ExprEnum::Assign(Box::new(expr::Assign {name, value}));
+                        ExprEnum::Assign(Box::new(expr::Assign {name, value}))
                     },
                     _ => panic!("{} {}", equals, "Invalid assignment target.")
                 }
             },
-            _ => return expr
+            _ => expr
         }
     }
 
     pub fn or(&mut self) -> ExprEnum {
         let mut expr = self.and();
 
-        loop {
-            match self.peek().token_type {
-                TokenType::Or => {
-                    let operator: Token = self.peek().clone();
-                    self.advance();
-                    let right: ExprEnum = self.and();
-                    expr = ExprEnum::Logic(Box::new(expr::Logic { left: expr, operator, right }))
-                },
-                _ => break
-            }
+        while let TokenType::Or = self.peek().token_type {
+            let operator: Token = self.peek().clone();
+            self.advance();
+            let right: ExprEnum = self.and();
+            expr = ExprEnum::Logic(Box::new(expr::Logic { left: expr, operator, right }))
         }
 
-        return expr
+        expr
     }
 
     pub fn and(&mut self) -> ExprEnum {
         let mut expr: ExprEnum = self.equality();
 
-        loop {
-            match self.peek().token_type {
-                TokenType::And => {
-                    let operator: Token = self.peek().clone();
-                    self.advance();
-                    let right: ExprEnum = self.equality();
-                    expr = ExprEnum::Logic(Box::new( expr::Logic {left: expr, operator, right} ))
-                },
-                _ => break
-            }
+        while let TokenType::And =  self.peek().token_type {
+            let operator: Token = self.peek().clone();
+            self.advance();
+            let right: ExprEnum = self.equality();
+            expr = ExprEnum::Logic(Box::new( expr::Logic {left: expr, operator, right} ))
         }
 
-        return expr
+        expr
     }
 
     pub fn equality(&mut self) -> ExprEnum {
@@ -295,7 +279,7 @@ impl Parser {
                 _ => break
             }
         }
-        return expr
+        expr
     }
 
     pub fn comparison(&mut self) -> ExprEnum {
@@ -312,7 +296,7 @@ impl Parser {
                 _ => break
             }
         }
-        return expr
+        expr
     }
 
     pub fn term(&mut self) -> ExprEnum {
@@ -329,7 +313,7 @@ impl Parser {
                 _ => break
             }
         }
-        return expr
+        expr
     }
 
     pub fn factor(&mut self) -> ExprEnum {
@@ -346,7 +330,7 @@ impl Parser {
                 _ => break
             }
         }
-        return expr
+        expr
     }
     
     pub fn unary(&mut self) -> ExprEnum {
@@ -356,9 +340,9 @@ impl Parser {
                 let operator: Token = token.clone();
                 self.advance();
                 let right: ExprEnum = self.unary();
-                return ExprEnum::Unary(Box::new(expr::Unary {operator, right}));
+                ExprEnum::Unary(Box::new(expr::Unary {operator, right}))
             },
-            _ => return self.call()
+            _ => self.call()
         }
     }
 
@@ -376,7 +360,7 @@ impl Parser {
             }
         }
     
-        return expr;
+        expr
     }
 
     pub fn finish_call(&mut self, callee: ExprEnum) -> ExprEnum {
@@ -403,7 +387,7 @@ impl Parser {
         }
         
         let paren: Token = self.consume(&TokenType::RightParen, "Expect ')' after arguments.").clone();
-        return ExprEnum::Call(Box::new( expr::Call { callee, paren, arguments }));
+        ExprEnum::Call(Box::new( expr::Call { callee, paren, arguments }))
     }
 
     pub fn primary(&mut self) -> ExprEnum {
@@ -411,36 +395,36 @@ impl Parser {
         match &token.token_type {
             TokenType::False => {
                 self.advance();
-                return ExprEnum::Literal(Box::new( expr::Literal {value: Value::Bool(false)}))
+                ExprEnum::Literal(Box::new( expr::Literal {value: Value::Bool(false)}))
                 },
             TokenType::True => {
                 self.advance();
-                return ExprEnum::Literal(Box::new( expr::Literal {value: Value::Bool(true)}))
+                ExprEnum::Literal(Box::new( expr::Literal {value: Value::Bool(true)}))
                 },
             TokenType::Nil => {
                 self.advance();
-                return ExprEnum::Literal(Box::new( expr::Literal {value: Value::Nil}))
+                ExprEnum::Literal(Box::new( expr::Literal {value: Value::Nil}))
                 },
             TokenType::String(x) => {
                 let value: String = x.clone();
                 self.advance();
-                return ExprEnum::Literal(Box::new( expr::Literal {value: Value::String(value)}))
+                ExprEnum::Literal(Box::new( expr::Literal {value: Value::String(value)}))
                 },
             TokenType::Number(x) => {
-                let value: f32 = x.clone();
+                let value: f32 = *x;
                 self.advance();
-                return ExprEnum::Literal(Box::new( expr::Literal {value: Value::Number(value)}))
+                ExprEnum::Literal(Box::new( expr::Literal {value: Value::Number(value)}))
                 },
             TokenType::LeftParen => {
                 self.advance();
                 let expression: ExprEnum = self.expression();
                 self.consume(&TokenType::RightParen, "Expect ')' after expression.");
-                return ExprEnum::Grouping(Box::new( expr::Grouping {expression}))
+                ExprEnum::Grouping(Box::new( expr::Grouping {expression}))
                 },
             TokenType::Identifier(_) => {
                 let name: Token = token.clone();
                 self.advance();
-                return ExprEnum::Var(Box::new( expr::Var {name}))
+                ExprEnum::Var(Box::new( expr::Var {name}))
             }
             _ => panic!("{}", &self.peek().token_type)
         }

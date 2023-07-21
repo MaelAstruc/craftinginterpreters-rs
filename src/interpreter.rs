@@ -1,6 +1,3 @@
-#[macro_use]
-#[path = "expr.rs"] mod expr;
-
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -17,6 +14,12 @@ pub struct Interpreter {
     pub environment: Rc<RefCell<Environment>>
 }
 
+impl Default for Interpreter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Interpreter {
     pub fn new() -> Interpreter {
         let mut globals = Environment::new(None);
@@ -29,9 +32,9 @@ impl Interpreter {
         );
 
         let globals: Rc<RefCell<Environment>> = Rc::new(RefCell::new(globals));
-        Interpreter {globals: globals.clone(), environment: globals.clone() }
+        Interpreter {globals: globals.clone(), environment: globals }
     }
-
+    
     pub fn interpret (&mut self, lox: &mut Lox, statements: Vec<Box<StmtEnum>>) {
         for statement in statements {
             match statement.execute(self.environment.clone()) {

@@ -27,7 +27,7 @@ impl Environment {
             return enclosing.as_ref().borrow_mut().get(name)
         }
         let message = format!("Undefined variable '{}'.", name.lexeme);
-        Err(RuntimeError {token: name, message: message})
+        Err(RuntimeError {token: name, message})
     }
 
     pub fn assign(&mut self, name: Token, value: Value) -> Result<Value, RuntimeError>  {
@@ -39,6 +39,6 @@ impl Environment {
             return enclosing.as_ref().borrow_mut().assign(name, value)
         }
         let message = format!("Undefined variable '{}'.", name.lexeme);
-        Err(RuntimeError {token: name, message: message})
+        Err(RuntimeError {token: name, message})
     }
 }
