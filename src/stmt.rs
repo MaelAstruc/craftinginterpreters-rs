@@ -2,10 +2,10 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-use crate::callable::{LoxFunction, LoxCallable};
+use crate::callable::{LoxCallable, LoxFunction};
 use crate::environment::Environment;
-use crate::interpreter::Interpreter;
 use crate::expr::{Expr, ExprEnum};
+use crate::interpreter::Interpreter;
 use crate::runtime_error::RuntimeError;
 use crate::token::Token;
 use crate::value::Value;
@@ -18,7 +18,7 @@ pub enum StmtEnum {
     Block(Box<Block>),
     Function(Box<Function>),
     If(Box<If>),
-    While(Box<While>)
+    While(Box<While>),
 }
 
 impl Stmt for StmtEnum {
@@ -30,7 +30,7 @@ impl Stmt for StmtEnum {
             StmtEnum::If(x) => x.execute(environment),
             StmtEnum::Print(x) => x.execute(environment),
             StmtEnum::Var(x) => x.execute(environment),
-            StmtEnum::While(x) => x.execute(environment)
+            StmtEnum::While(x) => x.execute(environment),
         }
     }
 }
@@ -44,7 +44,7 @@ impl fmt::Display for StmtEnum {
             StmtEnum::If(x) => write!(f, "{}", x),
             StmtEnum::Print(x) => write!(f, "{}", x),
             StmtEnum::Var(x) => write!(f, "{}", x),
-            StmtEnum::While(x) => write!(f, "{}", x)
+            StmtEnum::While(x) => write!(f, "{}", x),
         }
     }
 }
@@ -55,16 +55,16 @@ pub trait Stmt: std::fmt::Display {
 
 #[derive(Clone)]
 pub struct Expression {
-    pub expression: ExprEnum
+    pub expression: ExprEnum,
 }
 
 impl Stmt for Expression {
     fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         match self.expression.evaluate(environment) {
             Ok(x) => Ok(x),
-            Err(x) => Err(x)
+            Err(x) => Err(x),
         }
-    } 
+    }
 }
 
 impl fmt::Display for Expression {
@@ -75,7 +75,7 @@ impl fmt::Display for Expression {
 
 #[derive(Clone)]
 pub struct Print {
-    pub expression: ExprEnum
+    pub expression: ExprEnum,
 }
 
 impl Stmt for Print {
@@ -84,8 +84,8 @@ impl Stmt for Print {
             Ok(x) => {
                 println!("{}", x);
                 Ok(x)
-            },
-            Err(x) => Err(x)
+            }
+            Err(x) => Err(x),
         }
     }
 }
@@ -99,17 +99,20 @@ impl fmt::Display for Print {
 #[derive(Clone)]
 pub struct Var {
     pub name: Token,
-    pub initializer: ExprEnum
+    pub initializer: ExprEnum,
 }
 
 impl Stmt for Var {
     fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
         match self.initializer.evaluate(environment.clone()) {
             Ok(x) => {
-                environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), x.clone());
+                environment
+                    .as_ref()
+                    .borrow_mut()
+                    .define(self.name.lexeme.clone(), x.clone());
                 Ok(x)
-            },
-            Err(x) => Err(x)
+            }
+            Err(x) => Err(x),
         }
     }
 }
@@ -122,7 +125,7 @@ impl fmt::Display for Var {
 
 #[derive(Clone)]
 pub struct Block {
-    pub statements: Vec<Box<StmtEnum>>
+    pub statements: Vec<Box<StmtEnum>>,
 }
 
 impl Stmt for Block {
@@ -153,13 +156,18 @@ impl fmt::Display for Block {
 pub struct Function {
     pub name: Token,
     pub params: Vec<Token>,
-    pub body: Block
+    pub body: Block,
 }
 
 impl Stmt for Function {
     fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
-        let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction{ declaration: self.clone() })));
-        environment.as_ref().borrow_mut().define(self.name.lexeme.clone(), function);
+        let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction {
+            declaration: self.clone(),
+        })));
+        environment
+            .as_ref()
+            .borrow_mut()
+            .define(self.name.lexeme.clone(), function);
         Ok(Value::Nil)
     }
 }
@@ -170,12 +178,11 @@ impl fmt::Display for Function {
     }
 }
 
-
 #[derive(Clone)]
 pub struct If {
     pub condition: ExprEnum,
     pub then_branch: StmtEnum,
-    pub else_branch: Option<StmtEnum>
+    pub else_branch: Option<StmtEnum>,
 }
 
 impl Stmt for If {
@@ -184,14 +191,12 @@ impl Stmt for If {
         match self.condition.evaluate(environment.clone()) {
             Ok(x) if *Interpreter::check_bool(&x) => {
                 value = self.then_branch.execute(environment)?;
+            }
+            Ok(_) => match &self.else_branch {
+                Some(x) => value = x.execute(environment)?,
+                None => (),
             },
-            Ok(_) => {
-                match &self.else_branch {
-                    Some(x) => value = x.execute(environment)?,
-                    None => ()
-                }
-            },
-            Err(x) => return Err(x)
+            Err(x) => return Err(x),
         }
         Ok(value)
     }
@@ -200,17 +205,24 @@ impl Stmt for If {
 impl fmt::Display for If {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.else_branch {
-            Some(x) =>write!(f, "if ({}) \n then {{\n{}\n}} \n else {{\n{}\n}}", &self.condition, &self.then_branch, x),
-            None => write!(f, "if ({}) \n then {{\n{}\n}}", &self.condition, &self.then_branch)
+            Some(x) => write!(
+                f,
+                "if ({}) \n then {{\n{}\n}} \n else {{\n{}\n}}",
+                &self.condition, &self.then_branch, x
+            ),
+            None => write!(
+                f,
+                "if ({}) \n then {{\n{}\n}}",
+                &self.condition, &self.then_branch
+            ),
         }
-        
     }
 }
 
 #[derive(Clone)]
 pub struct While {
     pub condition: ExprEnum,
-    pub body: StmtEnum
+    pub body: StmtEnum,
 }
 
 impl Stmt for While {
@@ -221,14 +233,13 @@ impl Stmt for While {
                     if *Interpreter::check_bool(&x) {
                         match self.body.execute(environment.clone()) {
                             Ok(_) => (),
-                            Err(x) => return Err(x)
+                            Err(x) => return Err(x),
                         }
+                    } else {
+                        break;
                     }
-                    else {
-                        break
-                    }
-                },
-                Err(x) => return Err(x)
+                }
+                Err(x) => return Err(x),
             }
         }
         Ok(Value::Nil)

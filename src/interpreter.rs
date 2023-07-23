@@ -1,17 +1,17 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::Lox;
 use crate::callable::{LoxCallable, LoxClock};
 use crate::environment::Environment;
-use crate::value::Value;
 use crate::runtime_error::RuntimeError;
-use crate::token::Token;
 use crate::stmt::{Stmt, StmtEnum};
+use crate::token::Token;
+use crate::value::Value;
+use crate::Lox;
 
 pub struct Interpreter {
     pub globals: Rc<RefCell<Environment>>,
-    pub environment: Rc<RefCell<Environment>>
+    pub environment: Rc<RefCell<Environment>>,
 }
 
 impl Default for Interpreter {
@@ -23,60 +23,59 @@ impl Default for Interpreter {
 impl Interpreter {
     pub fn new() -> Interpreter {
         let mut globals = Environment::new(None);
-        
+
         globals.define(
             "clock".into(),
-            Value::Callable(
-                LoxCallable::LoxClock(Rc::new(LoxClock{ }))
-            )
+            Value::Callable(LoxCallable::LoxClock(Rc::new(LoxClock {}))),
         );
 
         let globals: Rc<RefCell<Environment>> = Rc::new(RefCell::new(globals));
-        Interpreter {globals: globals.clone(), environment: globals }
+        Interpreter {
+            globals: globals.clone(),
+            environment: globals,
+        }
     }
-    
-    pub fn interpret (&mut self, lox: &mut Lox, statements: Vec<Box<StmtEnum>>) {
+
+    pub fn interpret(&mut self, lox: &mut Lox, statements: Vec<Box<StmtEnum>>) {
         for statement in statements {
             match statement.execute(self.environment.clone()) {
                 Ok(_) => (),
-                Err(x) => lox.runtime_error(x)
+                Err(x) => lox.runtime_error(x),
             }
         }
     }
 
     pub fn check_operand(token: Token, message: &str, value: Value) -> RuntimeError {
         let message = format!("expected {message}, found {value}");
-        RuntimeError {token, message}
+        RuntimeError { token, message }
     }
-    
+
     pub fn check_operands(token: Token, message: &str, left: Value, right: Value) -> RuntimeError {
         panic!("{} {}, found {} and {}", message, token, left, right)
     }
-    
+
     pub fn check_bool(value: &Value) -> &bool {
         match value {
             Value::Bool(x) => x,
-            _ => &true
+            _ => &true,
         }
     }
-        
+
     pub fn check_equal(left: Value, right: Value) -> bool {
         match (left, right) {
-            (Value::Number(x), Value::Number(y)) => x==y,
-            (Value::String(x), Value::String(y)) => x==y,
-            (Value::Bool(x), Value::Bool(y)) => x==y,
+            (Value::Number(x), Value::Number(y)) => x == y,
+            (Value::String(x), Value::String(y)) => x == y,
+            (Value::Bool(x), Value::Bool(y)) => x == y,
             (Value::Nil, Value::Nil) => true,
             (Value::Callable(_), Value::Callable(_)) => false,
             (Value::Bool(_), _) => false,
             (Value::Number(_), _) => false,
             (Value::String(_), _) => false,
             (Value::Nil, _) => false,
-            (Value::Callable(_), _) => false
+            (Value::Callable(_), _) => false,
         }
     }
 }
-
-
 
 /*
 #[cfg(test)]
@@ -97,7 +96,7 @@ mod tests_evaluate {
             Ok(x) => x,
             Err(x) => panic!("{}", x)
         };
-        
+
         assert_eq!(result, expected);
     }
 
@@ -106,14 +105,14 @@ mod tests_evaluate {
         let code: &str = "nil";
         let mut scanner : Scanner = Scanner::new(code.into());
         scanner.scan_tokens();
-        
+
         let mut parser: Parser = Parser::new(scanner.tokens);
 
         let result: Value = match parser.parse().evaluate() {
             Ok(x) => x,
             Err(x) => panic!("{}", x)
         };
-        
+
         let expected: Value = Value::Nil;
 
         assert_eq!(result, expected);

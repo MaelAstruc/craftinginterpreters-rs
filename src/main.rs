@@ -2,16 +2,16 @@ use std::fs;
 use std::io;
 use std::process;
 
+pub mod callable;
 pub mod environment;
 pub mod expr;
 pub mod interpreter;
-pub mod callable;
 pub mod parser;
 pub mod runtime_error;
 pub mod scanner;
 pub mod stmt;
-pub mod token_type;
 pub mod token;
+pub mod token_type;
 pub mod value;
 
 use interpreter::Interpreter;
@@ -24,7 +24,7 @@ use crate::token_type::TokenType;
 
 pub struct Lox {
     had_error: bool,
-    had_runtime_error: bool
+    had_runtime_error: bool,
 }
 
 impl Lox {
@@ -32,7 +32,7 @@ impl Lox {
         match args.len() {
             1 => self.run_file(args[0]),
             2.. => println!("Usage: Lox [script]"),
-            _ => self.run_prompt()
+            _ => self.run_prompt(),
         }
     }
 
@@ -66,9 +66,9 @@ impl Lox {
         let statements: Vec<Box<stmt::StmtEnum>> = parser.parse();
 
         if self.had_error {
-            return
+            return;
         }
-        
+
         let mut interpreter = Interpreter::new();
 
         Interpreter::interpret(&mut interpreter, self, statements)
@@ -81,8 +81,7 @@ impl Lox {
     fn error_token(token: &Token, message: &str) {
         if token.token_type == TokenType::Eof {
             Self::report(token.line, " at the end", message)
-        }
-        else {
+        } else {
             let at: String = " at '".to_owned() + token.lexeme.as_ref() + "'";
             Self::report(token.line, at.as_str(), message)
         }
@@ -96,14 +95,13 @@ impl Lox {
     fn report(line: u32, at: &str, message: &str) {
         println!("[line {}] Error {}: {}", line, at, message)
     }
-
 }
 
 fn main() {
     let mut input = ["C:/Users/Mael/Documents/Temp/test.lox"];
     let mut lox: Lox = Lox {
         had_error: false,
-        had_runtime_error: false
+        had_runtime_error: false,
     };
     lox.main(&mut input)
 }
