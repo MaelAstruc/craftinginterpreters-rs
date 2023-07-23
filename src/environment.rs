@@ -1,6 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use crate::{runtime_error::{RuntimeError, LoxError}, token::Token, value::Value};
+use crate::{
+    runtime_error::{LoxError, RuntimeError},
+    token::Token,
+    value::Value,
+};
 
 pub struct Environment {
     enclosing: Option<Rc<RefCell<Environment>>>,

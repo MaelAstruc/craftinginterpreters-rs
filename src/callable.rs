@@ -60,7 +60,10 @@ pub struct LoxFunction {
 
 impl LoxFunction {
     pub fn new(&self, declaration: stmt::Function, closure: Rc<RefCell<Environment>>) -> Self {
-        LoxFunction { closure, declaration }
+        LoxFunction {
+            closure,
+            declaration,
+        }
     }
 
     pub fn arity(&self) -> usize {
@@ -83,8 +86,8 @@ impl LoxFunction {
             Ok(x) => Ok(x),
             Err(x) => match x {
                 LoxError::RuntimeError(_) => Err(x),
-                LoxError::Return(y) => Ok(y.value)
-            }
+                LoxError::Return(y) => Ok(y.value),
+            },
         }
     }
 }

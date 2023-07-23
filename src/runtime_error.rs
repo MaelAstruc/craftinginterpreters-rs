@@ -2,7 +2,7 @@ use crate::{token::Token, value::Value};
 
 pub enum LoxError {
     RuntimeError(RuntimeError),
-    Return(Return)
+    Return(Return),
 }
 
 pub struct RuntimeError {

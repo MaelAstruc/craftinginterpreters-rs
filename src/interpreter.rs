@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::callable::{LoxCallable, LoxClock};
 use crate::environment::Environment;
-use crate::runtime_error::{RuntimeError, LoxError};
+use crate::runtime_error::{LoxError, RuntimeError};
 use crate::stmt::{Stmt, StmtEnum};
 use crate::token::Token;
 use crate::value::Value;
@@ -43,7 +43,7 @@ impl Interpreter {
                 Err(x) => match x {
                     LoxError::RuntimeError(y) => lox.runtime_error(y),
                     LoxError::Return(_) => todo!("Return outside of function"),
-                }
+                },
             }
         }
     }

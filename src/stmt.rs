@@ -6,7 +6,7 @@ use crate::callable::{LoxCallable, LoxFunction};
 use crate::environment::Environment;
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
-use crate::runtime_error::{LoxError, self};
+use crate::runtime_error::{self, LoxError};
 use crate::token::Token;
 use crate::value::Value;
 
@@ -240,11 +240,11 @@ impl Stmt for Return {
         let value = match &self.value {
             Some(x) => match x.evaluate(environment) {
                 Ok(y) => y,
-                Err(y) => return Err(y)
+                Err(y) => return Err(y),
             },
-            None => Value::Nil
+            None => Value::Nil,
         };
-        Err(LoxError::Return( runtime_error::Return { value } ))
+        Err(LoxError::Return(runtime_error::Return { value }))
     }
 }
 

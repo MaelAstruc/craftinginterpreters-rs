@@ -64,9 +64,7 @@ impl Parser {
                 self.advance();
                 self.print_statement()
             }
-            TokenType::Return => {
-                self.return_statement()
-            }
+            TokenType::Return => self.return_statement(),
             TokenType::While => {
                 self.advance();
                 self.while_statement()
@@ -171,7 +169,7 @@ impl Parser {
             value = Some(self.expression());
         }
         self.consume(&TokenType::SemiColon, "Expect ';' after return value.");
-        Box::new(StmtEnum::Return(Box::new(stmt::Return { keyword: keyword, value })))
+        Box::new(StmtEnum::Return(Box::new(stmt::Return { keyword, value })))
     }
 
     pub fn while_statement(&mut self) -> Box<StmtEnum> {

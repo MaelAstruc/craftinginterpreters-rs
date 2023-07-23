@@ -208,7 +208,7 @@ mod tests {
         let mut scanner: Scanner = Scanner::new(code.into());
         scanner.scan_tokens();
 
-        for i in 0..expected.len() {
+        for (i, _token_type) in expected.iter().enumerate() {
             assert_eq!(scanner.tokens[i].token_type, expected[i]);
         }
     }

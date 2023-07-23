@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::callable::LoxCallable;
 use crate::environment::Environment;
 use crate::interpreter::Interpreter;
-use crate::runtime_error::{RuntimeError, LoxError};
+use crate::runtime_error::{LoxError, RuntimeError};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
