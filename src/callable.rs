@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::Environment;
-use crate::runtime_error::RuntimeError;
+use crate::runtime_error::LoxError;
 use crate::stmt;
 use crate::stmt::Stmt;
 use crate::value::Value;
@@ -21,7 +21,7 @@ pub trait Callable {
         &self,
         environment: Rc<RefCell<Environment>>,
         arguments: Vec<Value>,
-    ) -> Result<Value, RuntimeError>;
+    ) -> Result<Value, LoxError>;
 }
 
 impl Callable for LoxCallable {
@@ -36,7 +36,7 @@ impl Callable for LoxCallable {
         &self,
         environment: Rc<RefCell<Environment>>,
         arguments: Vec<Value>,
-    ) -> Result<Value, RuntimeError> {
+    ) -> Result<Value, LoxError> {
         match self {
             LoxCallable::LoxFunction(x) => x.call(environment, arguments),
             LoxCallable::LoxClock(x) => x.call(environment, arguments),
@@ -54,12 +54,13 @@ impl fmt::Display for LoxCallable {
 }
 
 pub struct LoxFunction {
+    pub closure: Rc<RefCell<Environment>>,
     pub declaration: stmt::Function,
 }
 
 impl LoxFunction {
-    pub fn new(&self, declaration: stmt::Function) -> Self {
-        LoxFunction { declaration }
+    pub fn new(&self, declaration: stmt::Function, closure: Rc<RefCell<Environment>>) -> Self {
+        LoxFunction { closure, declaration }
     }
 
     pub fn arity(&self) -> usize {
@@ -68,16 +69,23 @@ impl LoxFunction {
 
     pub fn call(
         &self,
-        environment: Rc<RefCell<Environment>>,
+        _environment: Rc<RefCell<Environment>>,
         arguments: Vec<Value>,
-    ) -> Result<Value, RuntimeError> {
-        let mut local = Environment::new(Some(environment));
+    ) -> Result<Value, LoxError> {
+        let mut local = Environment::new(Some(self.closure.clone()));
         for (i, param) in self.declaration.params.iter().enumerate() {
             let name = &param.lexeme;
             let arg = arguments.get(i).unwrap();
             local.define(name.to_string(), arg.clone());
         }
-        self.declaration.body.execute(Rc::new(RefCell::new(local)))
+        let result = self.declaration.body.execute(Rc::new(RefCell::new(local)));
+        match result {
+            Ok(x) => Ok(x),
+            Err(x) => match x {
+                LoxError::RuntimeError(_) => Err(x),
+                LoxError::Return(y) => Ok(y.value)
+            }
+        }
     }
 }
 
@@ -102,7 +110,7 @@ impl LoxClock {
         &self,
         _environment: Rc<RefCell<Environment>>,
         _arguments: Vec<Value>,
-    ) -> Result<Value, RuntimeError> {
+    ) -> Result<Value, LoxError> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(x) => Ok(Value::Number(x.as_secs_f32())),
             Err(x) => panic!("{}", x),

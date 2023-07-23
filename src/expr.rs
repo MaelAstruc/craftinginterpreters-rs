@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::callable::LoxCallable;
 use crate::environment::Environment;
 use crate::interpreter::Interpreter;
-use crate::runtime_error::RuntimeError;
+use crate::runtime_error::{RuntimeError, LoxError};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
@@ -23,7 +23,7 @@ pub enum ExprEnum {
 }
 
 impl Expr for ExprEnum {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self {
             ExprEnum::Binary(x) => x.evaluate(environment),
             ExprEnum::Grouping(x) => x.evaluate(environment),
@@ -53,7 +53,7 @@ impl fmt::Display for ExprEnum {
 }
 
 pub trait Expr: std::fmt::Display {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError>;
 }
 
 #[derive(Clone)]
@@ -64,7 +64,7 @@ pub struct Binary {
 }
 
 impl Expr for Binary {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         let left: Value = match self.left.evaluate(environment.clone()) {
             Ok(x) => x,
             Err(x) => return Err(x),
@@ -78,76 +78,76 @@ impl Expr for Binary {
         match token_type {
             TokenType::Minus => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x - y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::Plus => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x + y)),
                 (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers or two strings",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::Slash => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x / y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::Star => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x * y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::Greater => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x > y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::GreaterEqual => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x >= y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::Less => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x < y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::LessEqual => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x <= y)),
-                (x, y) => Err(Interpreter::check_operands(
+                (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token.clone(),
                     "expected two numbers",
                     x,
                     y,
-                )),
+                ))),
             },
             TokenType::EqualEqual => Ok(Value::Bool(Interpreter::check_equal(left, right))),
             TokenType::BangEqual => Ok(Value::Bool(!Interpreter::check_equal(left, right))),
@@ -172,7 +172,7 @@ pub struct Grouping {
 }
 
 impl Expr for Grouping {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         self.expression.evaluate(environment)
     }
 }
@@ -189,7 +189,7 @@ pub struct Literal {
 }
 
 impl Expr for Literal {
-    fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         Ok(self.value.clone())
     }
 }
@@ -207,7 +207,7 @@ pub struct Unary {
 }
 
 impl Expr for Unary {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         let right: Value = match self.right.evaluate(environment) {
             Ok(x) => x,
             Err(x) => return Err(x),
@@ -217,11 +217,11 @@ impl Expr for Unary {
         match token_type {
             TokenType::Minus => match right {
                 Value::Number(x) => Ok(Value::Number(-x)),
-                x => Err(Interpreter::check_operand(
+                x => Err(LoxError::RuntimeError(Interpreter::check_operand(
                     self.operator.clone(),
                     "expected a number",
                     x,
-                )),
+                ))),
             },
             TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(&right))),
             _ => panic!(
@@ -245,7 +245,7 @@ pub struct Var {
 }
 
 impl Expr for Var {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         environment.as_ref().borrow_mut().get(self.name.clone())
     }
 }
@@ -263,7 +263,7 @@ pub struct Assign {
 }
 
 impl Expr for Assign {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self.value.evaluate(environment.clone()) {
             Ok(x) => environment
                 .as_ref()
@@ -288,7 +288,7 @@ pub struct Logic {
 }
 
 impl Expr for Logic {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self.left.evaluate(environment.clone()) {
             Ok(left) => match self.operator.token_type {
                 TokenType::Or if *Interpreter::check_bool(&left) => Ok(left),
@@ -314,7 +314,7 @@ pub struct Call {
 }
 
 impl Expr for Call {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         let mut arguments: Vec<Value> = Vec::new();
 
         for argument in &self.arguments {
@@ -330,10 +330,10 @@ impl Expr for Call {
                             y.arity(),
                             arguments.len()
                         );
-                        return Err(RuntimeError {
+                        return Err(LoxError::RuntimeError(RuntimeError {
                             token: self.paren.clone(),
                             message,
-                        });
+                        }));
                     }
                     y.call(environment, arguments)
                 }
@@ -344,10 +344,10 @@ impl Expr for Call {
                             y.arity(),
                             arguments.len()
                         );
-                        return Err(RuntimeError {
+                        return Err(LoxError::RuntimeError(RuntimeError {
                             token: self.paren.clone(),
                             message,
-                        });
+                        }));
                     }
                     y.call(environment, arguments)
                 }
@@ -383,7 +383,7 @@ impl fmt::Display for Call {
     make_expr!(Literal, value:u8);
 
     impl Expr for Literal {
-      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         Ok(Value::Nil)
       }
     }
@@ -399,7 +399,7 @@ impl fmt::Display for Call {
     make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
 
     impl<T: Expr, U:Expr> Expr for Binary<T, U> {
-      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         Ok(Value::Nil)
       }
     }

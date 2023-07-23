@@ -6,7 +6,7 @@ use crate::callable::{LoxCallable, LoxFunction};
 use crate::environment::Environment;
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
-use crate::runtime_error::RuntimeError;
+use crate::runtime_error::{LoxError, self};
 use crate::token::Token;
 use crate::value::Value;
 
@@ -18,17 +18,19 @@ pub enum StmtEnum {
     Block(Box<Block>),
     Function(Box<Function>),
     If(Box<If>),
+    Return(Box<Return>),
     While(Box<While>),
 }
 
 impl Stmt for StmtEnum {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self {
             StmtEnum::Block(x) => x.execute(environment),
             StmtEnum::Expression(x) => x.execute(environment),
             StmtEnum::Function(x) => x.execute(environment),
             StmtEnum::If(x) => x.execute(environment),
             StmtEnum::Print(x) => x.execute(environment),
+            StmtEnum::Return(x) => x.execute(environment),
             StmtEnum::Var(x) => x.execute(environment),
             StmtEnum::While(x) => x.execute(environment),
         }
@@ -43,6 +45,7 @@ impl fmt::Display for StmtEnum {
             StmtEnum::Function(x) => write!(f, "{}", x),
             StmtEnum::If(x) => write!(f, "{}", x),
             StmtEnum::Print(x) => write!(f, "{}", x),
+            StmtEnum::Return(x) => write!(f, "{}", x),
             StmtEnum::Var(x) => write!(f, "{}", x),
             StmtEnum::While(x) => write!(f, "{}", x),
         }
@@ -50,7 +53,7 @@ impl fmt::Display for StmtEnum {
 }
 
 pub trait Stmt: std::fmt::Display {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError>;
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError>;
 }
 
 #[derive(Clone)]
@@ -59,7 +62,7 @@ pub struct Expression {
 }
 
 impl Stmt for Expression {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self.expression.evaluate(environment) {
             Ok(x) => Ok(x),
             Err(x) => Err(x),
@@ -79,7 +82,7 @@ pub struct Print {
 }
 
 impl Stmt for Print {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self.expression.evaluate(environment) {
             Ok(x) => {
                 println!("{}", x);
@@ -103,7 +106,7 @@ pub struct Var {
 }
 
 impl Stmt for Var {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         match self.initializer.evaluate(environment.clone()) {
             Ok(x) => {
                 environment
@@ -129,14 +132,20 @@ pub struct Block {
 }
 
 impl Stmt for Block {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         let block_env = Environment::new(Some(environment));
         let block_env_ref = Rc::new(RefCell::new(block_env));
-        let mut value = Value::Nil;
+        let mut value = Ok(Value::Nil);
         for statement in &self.statements {
-            value = statement.execute(block_env_ref.clone())?;
+            match statement.execute(block_env_ref.clone()) {
+                Ok(x) => value = Ok(x),
+                Err(x) => {
+                    value = Err(x);
+                    break;
+                }
+            }
         }
-        Ok(value)
+        value
     }
 }
 
@@ -160,8 +169,9 @@ pub struct Function {
 }
 
 impl Stmt for Function {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction {
+            closure: environment.clone(),
             declaration: self.clone(),
         })));
         environment
@@ -186,7 +196,7 @@ pub struct If {
 }
 
 impl Stmt for If {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         let mut value = Value::Nil;
         match self.condition.evaluate(environment.clone()) {
             Ok(x) if *Interpreter::check_bool(&x) => {
@@ -220,13 +230,41 @@ impl fmt::Display for If {
 }
 
 #[derive(Clone)]
+pub struct Return {
+    pub keyword: Token,
+    pub value: Option<ExprEnum>,
+}
+
+impl Stmt for Return {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+        let value = match &self.value {
+            Some(x) => match x.evaluate(environment) {
+                Ok(y) => y,
+                Err(y) => return Err(y)
+            },
+            None => Value::Nil
+        };
+        Err(LoxError::Return( runtime_error::Return { value } ))
+    }
+}
+
+impl fmt::Display for Return {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self.value {
+            Some(x) => write!(f, "return {}", x),
+            None => write!(f, "return nil"),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct While {
     pub condition: ExprEnum,
     pub body: StmtEnum,
 }
 
 impl Stmt for While {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, RuntimeError> {
+    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
         loop {
             match self.condition.evaluate(environment.clone()) {
                 Ok(x) => {
