@@ -7,6 +7,7 @@ pub mod environment;
 pub mod expr;
 pub mod interpreter;
 pub mod parser;
+pub mod resolver;
 pub mod runtime_error;
 pub mod scanner;
 pub mod stmt;
@@ -15,6 +16,7 @@ pub mod token_type;
 pub mod value;
 
 use interpreter::Interpreter;
+use resolver::Resolver;
 use runtime_error::RuntimeError;
 
 use crate::parser::Parser;
@@ -68,10 +70,17 @@ impl Lox {
         if self.had_error {
             return;
         }
-
+        
         let mut interpreter = Interpreter::new();
 
-        Interpreter::interpret(&mut interpreter, self, statements)
+        let mut resolver = Resolver::new(&mut interpreter);
+        resolver.resolve(&statements);
+
+        if self.had_error {
+            return;
+        }
+        
+        interpreter.interpret(self, statements)
     }
 
     fn error(line: u32, message: &str) {

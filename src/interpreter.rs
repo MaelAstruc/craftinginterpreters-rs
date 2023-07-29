@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::callable::{LoxCallable, LoxClock};
@@ -10,8 +11,10 @@ use crate::value::Value;
 use crate::Lox;
 
 pub struct Interpreter {
-    pub globals: Rc<RefCell<Environment>>,
     pub environment: Rc<RefCell<Environment>>,
+    pub other_environment: Option<Rc<RefCell<Environment>>>,
+    pub globals: Rc<RefCell<Environment>>,
+    pub locals: HashMap<usize, usize>,
 }
 
 impl Default for Interpreter {
@@ -30,20 +33,43 @@ impl Interpreter {
         );
 
         let globals: Rc<RefCell<Environment>> = Rc::new(RefCell::new(globals));
+
         Interpreter {
-            globals: globals.clone(),
-            environment: globals,
+            environment: globals.clone(),
+            other_environment: None,
+            globals: globals,
+            locals: HashMap::new(),
         }
     }
 
     pub fn interpret(&mut self, lox: &mut Lox, statements: Vec<Box<StmtEnum>>) {
         for statement in statements {
-            match statement.execute(self.environment.clone()) {
+            match statement.execute(self) {
                 Ok(_) => (),
                 Err(x) => match x {
                     LoxError::RuntimeError(y) => lox.runtime_error(y),
                     LoxError::Return(_) => todo!("Return outside of function"),
                 },
+            }
+        }
+    }
+
+    pub fn resolve(&mut self, expr: usize, depth: usize) {
+        self.locals.insert(expr, depth);
+    }
+
+    pub fn look_up_var(&mut self, name: Token, expr: usize) -> Result<Value, LoxError> {
+        let distance = self.locals.get(&expr);
+        match distance {
+            Some(x) => {
+                self
+                .environment
+                .as_ref()
+                .borrow_mut()
+                .get_at(x.clone(), name.lexeme.clone())
+            },
+            None => {
+                self.globals.as_ref().borrow_mut().get(name.clone())
             }
         }
     }

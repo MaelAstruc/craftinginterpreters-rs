@@ -10,11 +10,12 @@ use crate::{expr, stmt, Lox};
 pub struct Parser {
     pub tokens: Vec<Token>,
     pub curr: usize,
+    pub var_counter: usize,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Parser {
-        Parser { tokens, curr: 0 }
+        Parser { tokens, curr: 0 , var_counter: 0}
     }
 
     pub fn parse(&mut self) -> Vec<Box<StmtEnum>> {
@@ -281,7 +282,8 @@ impl Parser {
                 match expr {
                     ExprEnum::Var(x) => {
                         let name: Token = x.name;
-                        ExprEnum::Assign(Box::new(expr::Assign { name, value }))
+                        self.var_counter += 1;
+                        ExprEnum::Assign(Box::new(expr::Assign { name, value, id: self.var_counter }))
                     }
                     _ => panic!("{} {}", equals, "Invalid assignment target."),
                 }
@@ -516,7 +518,8 @@ impl Parser {
             TokenType::Identifier(_) => {
                 let name: Token = token.clone();
                 self.advance();
-                ExprEnum::Var(Box::new(expr::Var { name }))
+                self.var_counter += 1;
+                ExprEnum::Var(Box::new(expr::Var { name, id: self.var_counter }))
             }
             _ => panic!("{}", &self.peek().token_type),
         }

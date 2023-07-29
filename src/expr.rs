@@ -1,10 +1,9 @@
-use std::cell::RefCell;
 use std::fmt;
-use std::rc::Rc;
 
+use crate::Lox;
 use crate::callable::LoxCallable;
-use crate::environment::Environment;
 use crate::interpreter::Interpreter;
+use crate::resolver::Resolver;
 use crate::runtime_error::{LoxError, RuntimeError};
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -23,16 +22,29 @@ pub enum ExprEnum {
 }
 
 impl Expr for ExprEnum {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         match self {
-            ExprEnum::Binary(x) => x.evaluate(environment),
-            ExprEnum::Grouping(x) => x.evaluate(environment),
-            ExprEnum::Literal(x) => x.evaluate(environment),
-            ExprEnum::Unary(x) => x.evaluate(environment),
-            ExprEnum::Var(x) => x.evaluate(environment),
-            ExprEnum::Assign(x) => x.evaluate(environment),
-            ExprEnum::Logic(x) => x.evaluate(environment),
-            ExprEnum::Call(x) => x.evaluate(environment),
+            ExprEnum::Binary(x) => x.evaluate(interpreter),
+            ExprEnum::Grouping(x) => x.evaluate(interpreter),
+            ExprEnum::Literal(x) => x.evaluate(interpreter),
+            ExprEnum::Unary(x) => x.evaluate(interpreter),
+            ExprEnum::Var(x) => x.evaluate(interpreter),
+            ExprEnum::Assign(x) => x.evaluate(interpreter),
+            ExprEnum::Logic(x) => x.evaluate(interpreter),
+            ExprEnum::Call(x) => x.evaluate(interpreter),
+        }
+    }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        match self {
+            ExprEnum::Binary(x) => x.resolve(resolver),
+            ExprEnum::Grouping(x) => x.resolve(resolver),
+            ExprEnum::Literal(x) => x.resolve(resolver),
+            ExprEnum::Unary(x) => x.resolve(resolver),
+            ExprEnum::Var(x) => x.resolve(resolver),
+            ExprEnum::Assign(x) => x.resolve(resolver),
+            ExprEnum::Logic(x) => x.resolve(resolver),
+            ExprEnum::Call(x) => x.resolve(resolver),
         }
     }
 }
@@ -53,7 +65,8 @@ impl fmt::Display for ExprEnum {
 }
 
 pub trait Expr: std::fmt::Display {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError>;
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError>;
+    fn resolve(&self, resolver:  &mut Resolver);
 }
 
 #[derive(Clone)]
@@ -64,12 +77,12 @@ pub struct Binary {
 }
 
 impl Expr for Binary {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        let left: Value = match self.left.evaluate(environment.clone()) {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let left: Value = match self.left.evaluate(interpreter) {
             Ok(x) => x,
             Err(x) => return Err(x),
         };
-        let right: Value = match self.right.evaluate(environment) {
+        let right: Value = match self.right.evaluate(interpreter) {
             Ok(x) => x,
             Err(x) => return Err(x),
         };
@@ -154,6 +167,11 @@ impl Expr for Binary {
             _ => panic!("Unexpected token: {}", token),
         }
     }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        self.left.resolve(resolver);
+        self.right.resolve(resolver);
+    }
 }
 
 impl fmt::Display for Binary {
@@ -172,8 +190,12 @@ pub struct Grouping {
 }
 
 impl Expr for Grouping {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        self.expression.evaluate(environment)
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        self.expression.evaluate(interpreter)
+    }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        self.expression.resolve(resolver);
     }
 }
 
@@ -189,9 +211,11 @@ pub struct Literal {
 }
 
 impl Expr for Literal {
-    fn evaluate(&self, _environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn evaluate(&self, _interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         Ok(self.value.clone())
     }
+
+    fn resolve(&self, _resolver:  &mut Resolver) { }
 }
 
 impl fmt::Display for Literal {
@@ -207,8 +231,8 @@ pub struct Unary {
 }
 
 impl Expr for Unary {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        let right: Value = match self.right.evaluate(environment) {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let right: Value = match self.right.evaluate(interpreter) {
             Ok(x) => x,
             Err(x) => return Err(x),
         };
@@ -231,6 +255,10 @@ impl Expr for Unary {
             ),
         }
     }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        self.right.resolve(resolver);
+    }
 }
 
 impl fmt::Display for Unary {
@@ -242,11 +270,25 @@ impl fmt::Display for Unary {
 #[derive(Clone)]
 pub struct Var {
     pub name: Token,
+    pub id: usize,
 }
 
 impl Expr for Var {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        environment.as_ref().borrow_mut().get(self.name.clone())
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        interpreter.look_up_var(self.name.clone(), self.id)
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        match resolver.scopes.last() {
+            Some(x) => match x.get(&self.name.lexeme) {
+                Some(y) => match y {
+                    true => resolver.resolve_local(self.id, self.name.clone()),
+                    false => Lox::error_token(&self.name, "Can't read local variable in its own initializer."),
+                },
+                None => resolver.resolve_local(self.id, self.name.clone()),
+            },
+            None => resolver.resolve_local(self.id, self.name.clone()),
+        }
     }
 }
 
@@ -260,17 +302,27 @@ impl fmt::Display for Var {
 pub struct Assign {
     pub name: Token,
     pub value: ExprEnum,
+    pub id: usize,
 }
 
 impl Expr for Assign {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        match self.value.evaluate(environment.clone()) {
-            Ok(x) => environment
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let value = self.value.evaluate(interpreter)?;
+        match interpreter.locals.get(&self.id) {
+            Some(x) => {
+                interpreter
+                .environment
                 .as_ref()
                 .borrow_mut()
-                .assign(self.name.clone(), x),
-            Err(x) => Err(x),
+                .assign_at(*x, self.name.clone(), value)
+            },
+            None => interpreter.globals.as_ref().borrow_mut().assign(self.name.clone(), value),
         }
+    }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        self.value.resolve(resolver);
+        resolver.resolve_local(self.id, self.name.clone());
     }
 }
 
@@ -288,15 +340,20 @@ pub struct Logic {
 }
 
 impl Expr for Logic {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        match self.left.evaluate(environment.clone()) {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        match self.left.evaluate(interpreter) {
             Ok(left) => match self.operator.token_type {
                 TokenType::Or if *Interpreter::check_bool(&left) => Ok(left),
                 TokenType::And if !Interpreter::check_bool(&left) => Ok(left),
-                _ => self.right.evaluate(environment),
+                _ => self.right.evaluate(interpreter),
             },
             Err(x) => Err(x),
         }
+    }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        self.left.resolve(resolver);
+        self.right.resolve(resolver);
     }
 }
 
@@ -314,14 +371,13 @@ pub struct Call {
 }
 
 impl Expr for Call {
-    fn evaluate(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let mut arguments: Vec<Value> = Vec::new();
 
         for argument in &self.arguments {
-            arguments.push(argument.evaluate(environment.clone())?)
+            arguments.push(argument.evaluate(interpreter)?)
         }
-
-        match self.callee.evaluate(environment.clone())? {
+        match self.callee.evaluate(interpreter)? {
             Value::Callable(x) => match x {
                 LoxCallable::LoxFunction(y) => {
                     if arguments.len() != y.arity() {
@@ -335,7 +391,7 @@ impl Expr for Call {
                             message,
                         }));
                     }
-                    y.call(environment, arguments)
+                    y.call(interpreter, arguments)
                 }
                 LoxCallable::LoxClock(y) => {
                     if arguments.len() != y.arity() {
@@ -349,17 +405,29 @@ impl Expr for Call {
                             message,
                         }));
                     }
-                    y.call(environment, arguments)
+                    y.call(interpreter, arguments)
                 }
             },
             _ => panic!(),
+        }
+    }
+
+    fn resolve(&self, resolver:  &mut Resolver) {
+        self.callee.resolve(resolver);
+        for argument in &self.arguments {
+            argument.resolve(resolver);
         }
     }
 }
 
 impl fmt::Display for Call {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "no")
+        let mut arguments: String = "".into();
+        for arg in &self.arguments {
+            arguments += &arg.to_string();
+            arguments += ", ";
+        }
+        write!(f, "{}({})", self.callee, arguments)
     }
 }
 /*

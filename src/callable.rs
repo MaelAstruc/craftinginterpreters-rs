@@ -4,6 +4,7 @@ use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::Environment;
+use crate::interpreter::Interpreter;
 use crate::runtime_error::LoxError;
 use crate::stmt;
 use crate::stmt::Stmt;
@@ -19,7 +20,7 @@ pub trait Callable {
     fn arity(&self) -> usize;
     fn call(
         &self,
-        environment: Rc<RefCell<Environment>>,
+        interpreter: &mut Interpreter,
         arguments: Vec<Value>,
     ) -> Result<Value, LoxError>;
 }
@@ -34,12 +35,12 @@ impl Callable for LoxCallable {
 
     fn call(
         &self,
-        environment: Rc<RefCell<Environment>>,
+        interpreter: & mut Interpreter,
         arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
         match self {
-            LoxCallable::LoxFunction(x) => x.call(environment, arguments),
-            LoxCallable::LoxClock(x) => x.call(environment, arguments),
+            LoxCallable::LoxFunction(x) => x.call(interpreter, arguments),
+            LoxCallable::LoxClock(x) => x.call(interpreter, arguments),
         }
     }
 }
@@ -72,16 +73,19 @@ impl LoxFunction {
 
     pub fn call(
         &self,
-        _environment: Rc<RefCell<Environment>>,
+        interpreter: &mut Interpreter,
         arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
-        let mut local = Environment::new(Some(self.closure.clone()));
+        interpreter.other_environment = Some(Rc::new(RefCell::new(Environment::new(Some(interpreter.environment.clone())))));
         for (i, param) in self.declaration.params.iter().enumerate() {
-            let name = &param.lexeme;
             let arg = arguments.get(i).unwrap();
-            local.define(name.to_string(), arg.clone());
+            match &interpreter.other_environment {
+                Some(x) => x.as_ref().borrow_mut().define(param.lexeme.to_string(), arg.clone()),
+                None => panic!("Impossible, we defined it above.")
+            }
         }
-        let result = self.declaration.body.execute(Rc::new(RefCell::new(local)));
+        let result = self.declaration.body.execute(interpreter);
+        interpreter.other_environment = None;
         match result {
             Ok(x) => Ok(x),
             Err(x) => match x {
@@ -111,7 +115,7 @@ impl LoxClock {
 
     pub fn call(
         &self,
-        _environment: Rc<RefCell<Environment>>,
+        _interpreter: &mut Interpreter,
         _arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {

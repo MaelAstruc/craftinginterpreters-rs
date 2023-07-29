@@ -2,10 +2,12 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-use crate::callable::{LoxCallable, LoxFunction};
 use crate::environment::Environment;
+use crate::Lox;
+use crate::callable::{LoxCallable, LoxFunction};
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
+use crate::resolver::{Resolver, FunctionType};
 use crate::runtime_error::{self, LoxError};
 use crate::token::Token;
 use crate::value::Value;
@@ -23,16 +25,29 @@ pub enum StmtEnum {
 }
 
 impl Stmt for StmtEnum {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         match self {
-            StmtEnum::Block(x) => x.execute(environment),
-            StmtEnum::Expression(x) => x.execute(environment),
-            StmtEnum::Function(x) => x.execute(environment),
-            StmtEnum::If(x) => x.execute(environment),
-            StmtEnum::Print(x) => x.execute(environment),
-            StmtEnum::Return(x) => x.execute(environment),
-            StmtEnum::Var(x) => x.execute(environment),
-            StmtEnum::While(x) => x.execute(environment),
+            StmtEnum::Block(x) => x.execute(interpreter),
+            StmtEnum::Expression(x) => x.execute(interpreter),
+            StmtEnum::Function(x) => x.execute(interpreter),
+            StmtEnum::If(x) => x.execute(interpreter),
+            StmtEnum::Print(x) => x.execute(interpreter),
+            StmtEnum::Return(x) => x.execute(interpreter),
+            StmtEnum::Var(x) => x.execute(interpreter),
+            StmtEnum::While(x) => x.execute(interpreter),
+        }
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        match self {
+            StmtEnum::Block(x) => x.resolve(resolver),
+            StmtEnum::Expression(x) => x.resolve(resolver),
+            StmtEnum::Function(x) => x.resolve(resolver),
+            StmtEnum::If(x) => x.resolve(resolver),
+            StmtEnum::Print(x) => x.resolve(resolver),
+            StmtEnum::Return(x) => x.resolve(resolver),
+            StmtEnum::Var(x) => x.resolve(resolver),
+            StmtEnum::While(x) => x.resolve(resolver),
         }
     }
 }
@@ -53,7 +68,8 @@ impl fmt::Display for StmtEnum {
 }
 
 pub trait Stmt: std::fmt::Display {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError>;
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError>;
+    fn resolve(&self, resolver: &mut Resolver);
 }
 
 #[derive(Clone)]
@@ -62,11 +78,15 @@ pub struct Expression {
 }
 
 impl Stmt for Expression {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        match self.expression.evaluate(environment) {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        match self.expression.evaluate(interpreter) {
             Ok(x) => Ok(x),
             Err(x) => Err(x),
         }
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        self.expression.resolve(resolver);
     }
 }
 
@@ -82,14 +102,18 @@ pub struct Print {
 }
 
 impl Stmt for Print {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        match self.expression.evaluate(environment) {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        match self.expression.evaluate(interpreter) {
             Ok(x) => {
                 println!("{}", x);
                 Ok(x)
             }
             Err(x) => Err(x),
         }
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        self.expression.resolve(resolver);
     }
 }
 
@@ -106,10 +130,11 @@ pub struct Var {
 }
 
 impl Stmt for Var {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        match self.initializer.evaluate(environment.clone()) {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        match self.initializer.evaluate(interpreter) {
             Ok(x) => {
-                environment
+                interpreter
+                    .environment
                     .as_ref()
                     .borrow_mut()
                     .define(self.name.lexeme.clone(), x.clone());
@@ -117,6 +142,12 @@ impl Stmt for Var {
             }
             Err(x) => Err(x),
         }
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        resolver.declare(&self.name);
+        self.initializer.resolve(resolver);
+        resolver.define(&self.name);
     }
 }
 
@@ -132,12 +163,15 @@ pub struct Block {
 }
 
 impl Stmt for Block {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        let block_env = Environment::new(Some(environment));
-        let block_env_ref = Rc::new(RefCell::new(block_env));
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let previous = interpreter.environment.clone();
+        interpreter.environment = match &interpreter.other_environment {
+            Some(x) => x.clone(),
+            None => Rc::new(RefCell::new(Environment::new(Some(previous.clone()))))
+        };
         let mut value = Ok(Value::Nil);
         for statement in &self.statements {
-            match statement.execute(block_env_ref.clone()) {
+            match statement.execute(interpreter) {
                 Ok(x) => value = Ok(x),
                 Err(x) => {
                     value = Err(x);
@@ -145,7 +179,16 @@ impl Stmt for Block {
                 }
             }
         }
+        interpreter.environment = previous;
         value
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        resolver.begin_scope();
+        for statement in &self.statements {
+            statement.resolve(resolver)
+        }
+        resolver.end_scope();
     }
 }
 
@@ -169,16 +212,23 @@ pub struct Function {
 }
 
 impl Stmt for Function {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction {
-            closure: environment.clone(),
+            closure: interpreter.environment.clone(),
             declaration: self.clone(),
         })));
-        environment
+        interpreter
+            .environment
             .as_ref()
             .borrow_mut()
             .define(self.name.lexeme.clone(), function);
         Ok(Value::Nil)
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        resolver.declare(&self.name);
+        resolver.define(&self.name);
+        resolver.resolve_function(self, FunctionType::FUNCTION);
     }
 }
 
@@ -196,19 +246,28 @@ pub struct If {
 }
 
 impl Stmt for If {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let mut value = Value::Nil;
-        match self.condition.evaluate(environment.clone()) {
+        match self.condition.evaluate(interpreter) {
             Ok(x) if *Interpreter::check_bool(&x) => {
-                value = self.then_branch.execute(environment)?;
+                value = self.then_branch.execute(interpreter)?;
             }
             Ok(_) => match &self.else_branch {
-                Some(x) => value = x.execute(environment)?,
+                Some(x) => value = x.execute(interpreter)?,
                 None => (),
             },
             Err(x) => return Err(x),
         }
         Ok(value)
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        self.condition.resolve(resolver);
+        self.then_branch.resolve(resolver);
+        match &self.else_branch {
+            Some(x) => x.resolve(resolver),
+            None => ()
+        }
     }
 }
 
@@ -236,15 +295,26 @@ pub struct Return {
 }
 
 impl Stmt for Return {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let value = match &self.value {
-            Some(x) => match x.evaluate(environment) {
+            Some(x) => match x.evaluate(interpreter) {
                 Ok(y) => y,
                 Err(y) => return Err(y),
             },
             None => Value::Nil,
         };
         Err(LoxError::Return(runtime_error::Return { value }))
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        match resolver.current_function {
+            FunctionType::NONE => Lox::error_token(&self.keyword, "Can't return from top-level code."),
+            _ => ()
+        }
+        match &self.value {
+            Some(x) => x.resolve(resolver),
+            None => ()
+        }
     }
 }
 
@@ -264,12 +334,12 @@ pub struct While {
 }
 
 impl Stmt for While {
-    fn execute(&self, environment: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         loop {
-            match self.condition.evaluate(environment.clone()) {
+            match self.condition.evaluate(interpreter) {
                 Ok(x) => {
                     if *Interpreter::check_bool(&x) {
-                        match self.body.execute(environment.clone()) {
+                        match self.body.execute(interpreter) {
                             Ok(_) => (),
                             Err(x) => return Err(x),
                         }
@@ -281,6 +351,11 @@ impl Stmt for While {
             }
         }
         Ok(Value::Nil)
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        self.condition.resolve(resolver);
+        self.body.resolve(resolver);
     }
 }
 
