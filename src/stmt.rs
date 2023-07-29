@@ -1,9 +1,8 @@
-use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
 use crate::callable::{LoxCallable, LoxFunction};
-use crate::environment::Environment;
+use crate::environment::{Environment, EnvRef};
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
 use crate::resolver::{FunctionType, Resolver};
@@ -135,8 +134,7 @@ impl Stmt for Var {
             Ok(x) => {
                 interpreter
                     .environment
-                    .as_ref()
-                    .borrow_mut()
+                    .deref_mut()
                     .define(self.name.lexeme.clone(), x.clone());
                 Ok(x)
             }
@@ -167,7 +165,7 @@ impl Stmt for Block {
         let previous = interpreter.environment.clone();
         interpreter.environment = match &interpreter.other_environment {
             Some(x) => x.clone(),
-            None => Rc::new(RefCell::new(Environment::new(Some(previous.clone())))),
+            None => EnvRef::new(Environment::new(Some(previous.clone()))),
         };
         let mut value = Ok(Value::Nil);
         for statement in &self.statements {
@@ -219,8 +217,7 @@ impl Stmt for Function {
         })));
         interpreter
             .environment
-            .as_ref()
-            .borrow_mut()
+            .deref_mut()
             .define(self.name.lexeme.clone(), function);
         Ok(Value::Nil)
     }

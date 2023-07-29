@@ -1,9 +1,8 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::callable::{LoxCallable, LoxClock};
-use crate::environment::Environment;
+use crate::environment::{Environment, EnvRef};
 use crate::runtime_error::{LoxError, RuntimeError};
 use crate::stmt::{Stmt, StmtEnum};
 use crate::token::Token;
@@ -11,9 +10,9 @@ use crate::value::Value;
 use crate::Lox;
 
 pub struct Interpreter {
-    pub environment: Rc<RefCell<Environment>>,
-    pub other_environment: Option<Rc<RefCell<Environment>>>,
-    pub globals: Rc<RefCell<Environment>>,
+    pub environment: EnvRef,
+    pub other_environment: Option<EnvRef>,
+    pub globals: EnvRef,
     pub locals: HashMap<usize, usize>,
 }
 
@@ -32,7 +31,7 @@ impl Interpreter {
             Value::Callable(LoxCallable::LoxClock(Rc::new(LoxClock {}))),
         );
 
-        let globals: Rc<RefCell<Environment>> = Rc::new(RefCell::new(globals));
+        let globals: EnvRef = EnvRef::new(globals);
 
         Interpreter {
             environment: globals.clone(),
@@ -63,10 +62,9 @@ impl Interpreter {
         match distance {
             Some(x) => self
                 .environment
-                .as_ref()
-                .borrow_mut()
+                .deref_mut()
                 .get_at(*x, name.lexeme),
-            None => self.globals.as_ref().borrow_mut().get(name),
+            None => self.globals.deref_mut().get(name),
         }
     }
 

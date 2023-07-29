@@ -1,9 +1,8 @@
-use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::environment::Environment;
+use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::runtime_error::LoxError;
 use crate::stmt;
@@ -52,12 +51,12 @@ impl fmt::Display for LoxCallable {
 }
 
 pub struct LoxFunction {
-    pub closure: Rc<RefCell<Environment>>,
+    pub closure: EnvRef,
     pub declaration: stmt::Function,
 }
 
 impl LoxFunction {
-    pub fn new(&self, declaration: stmt::Function, closure: Rc<RefCell<Environment>>) -> Self {
+    pub fn new(&self, declaration: stmt::Function, closure: EnvRef) -> Self {
         LoxFunction {
             closure,
             declaration,
@@ -73,15 +72,12 @@ impl LoxFunction {
         interpreter: &mut Interpreter,
         arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
-        interpreter.other_environment = Some(Rc::new(RefCell::new(Environment::new(Some(
-            interpreter.environment.clone(),
-        )))));
+        interpreter.other_environment = Some(interpreter.environment.clone());
         for (i, param) in self.declaration.params.iter().enumerate() {
             let arg = arguments.get(i).unwrap();
             match &interpreter.other_environment {
                 Some(x) => x
-                    .as_ref()
-                    .borrow_mut()
+                    .deref_mut()
                     .define(param.lexeme.to_string(), arg.clone()),
                 None => panic!("Impossible, we defined it above."),
             }

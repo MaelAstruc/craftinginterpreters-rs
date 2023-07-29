@@ -7,12 +7,12 @@ use crate::{
 };
 
 pub struct Environment {
-    enclosing: Option<Rc<RefCell<Environment>>>,
+    enclosing: Option<EnvRef>,
     values: HashMap<String, Value>,
 }
 
 impl Environment {
-    pub fn new(enclosing: Option<Rc<RefCell<Environment>>>) -> Environment {
+    pub fn new(enclosing: Option<EnvRef>) -> Environment {
         Environment {
             enclosing,
             values: HashMap::new(),
@@ -23,12 +23,11 @@ impl Environment {
         self.values.insert(name, value);
     }
 
-    pub fn ancestor(&self, distance: usize) -> Rc<RefCell<Environment>> {
+    pub fn ancestor(&self, distance: usize) -> EnvRef {
         let mut environment = self.enclosing.clone().expect("No enclosing environment.");
         for _ in 0..(distance - 1) {
             let next = environment
-                .as_ref()
-                .borrow()
+                .deref_mut()
                 .enclosing
                 .clone()
                 .expect("No enclosing environment.");
@@ -45,7 +44,7 @@ impl Environment {
             }
         }
 
-        match self.ancestor(distance).as_ref().borrow().values.get(&name) {
+        match self.ancestor(distance).deref_mut().values.get(&name) {
             Some(x) => Ok(x.clone()),
             None => panic!("Cannot find value"),
         }
@@ -56,7 +55,7 @@ impl Environment {
             return Ok(x.clone());
         }
         if let Some(enclosing) = &self.enclosing {
-            return enclosing.as_ref().borrow_mut().get(name);
+            return enclosing.deref_mut().get(name);
         }
         let message = format!("Undefined variable '{}'.", name.lexeme);
         Err(LoxError::RuntimeError(RuntimeError {
@@ -80,8 +79,7 @@ impl Environment {
 
         match self
             .ancestor(distance)
-            .as_ref()
-            .borrow_mut()
+            .deref_mut()
             .values
             .insert(name.lexeme, value)
         {
@@ -95,12 +93,27 @@ impl Environment {
             return Ok(x);
         }
         if let Some(enclosing) = &mut self.enclosing {
-            return enclosing.as_ref().borrow_mut().assign(name, value);
+            return enclosing.deref_mut().assign(name, value);
         }
         let message = format!("Undefined variable '{}'.", name.lexeme);
         Err(LoxError::RuntimeError(RuntimeError {
             token: name,
             message,
         }))
+    }
+}
+
+#[derive(Clone)]
+pub struct EnvRef {
+    environment: Rc<RefCell<Environment>>
+}
+
+impl EnvRef {
+    pub fn new(environment: Environment) -> EnvRef {
+        EnvRef{ environment: Rc::new(RefCell::new(environment)) }
+    }
+
+    pub fn deref_mut(&self) -> std::cell::RefMut<'_, Environment> {
+        self.environment.as_ref().borrow_mut()
     }
 }
