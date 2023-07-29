@@ -37,7 +37,7 @@ impl Interpreter {
         Interpreter {
             environment: globals.clone(),
             other_environment: None,
-            globals: globals,
+            globals,
             locals: HashMap::new(),
         }
     }
@@ -66,10 +66,10 @@ impl Interpreter {
                 .environment
                 .as_ref()
                 .borrow_mut()
-                .get_at(x.clone(), name.lexeme.clone())
+                .get_at(*x, name.lexeme)
             },
             None => {
-                self.globals.as_ref().borrow_mut().get(name.clone())
+                self.globals.as_ref().borrow_mut().get(name)
             }
         }
     }

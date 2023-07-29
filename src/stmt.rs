@@ -307,10 +307,7 @@ impl Stmt for Return {
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
-        match resolver.current_function {
-            FunctionType::NONE => Lox::error_token(&self.keyword, "Can't return from top-level code."),
-            _ => ()
-        }
+        if let FunctionType::NONE = resolver.current_function { Lox::error_token(&self.keyword, "Can't return from top-level code.") };
         match &self.value {
             Some(x) => x.resolve(resolver),
             None => ()

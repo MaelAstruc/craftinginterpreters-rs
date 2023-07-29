@@ -62,14 +62,14 @@ impl Environment {
  
     pub fn assign_at(&mut self, distance: usize, name: Token, value: Value) -> Result<Value, LoxError> {
         if distance == 0 {
-            match self.values.insert(name.lexeme.clone(), value) {
-                Some(x) => return Ok(x.clone()),
+            match self.values.insert(name.lexeme, value) {
+                Some(x) => return Ok(x),
                 None => panic!("Cannot insert value")
             }
         }
 
-        match self.ancestor(distance).as_ref().borrow_mut().values.insert(name.lexeme.clone(), value) {
-            Some(x) => Ok(x.clone()),
+        match self.ancestor(distance).as_ref().borrow_mut().values.insert(name.lexeme, value) {
+            Some(x) => Ok(x),
             None => panic!("Cannot insert value")
         }
         
