@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::callable::{LoxCallable, LoxClock};
-use crate::environment::{Environment, EnvRef};
+use crate::environment::{EnvRef, Environment};
 use crate::runtime_error::{LoxError, RuntimeError};
 use crate::stmt::{Stmt, StmtEnum};
 use crate::token::Token;
@@ -60,10 +60,7 @@ impl Interpreter {
     pub fn look_up_var(&mut self, name: Token, expr: usize) -> Result<Value, LoxError> {
         let distance = self.locals.get(&expr);
         match distance {
-            Some(x) => self
-                .environment
-                .deref_mut()
-                .get_at(*x, name.lexeme),
+            Some(x) => self.environment.deref_mut().get_at(*x, name.lexeme),
             None => self.globals.deref_mut().get(name),
         }
     }

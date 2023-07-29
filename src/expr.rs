@@ -312,11 +312,10 @@ impl Expr for Assign {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let value = self.value.evaluate(interpreter)?;
         match interpreter.locals.get(&self.id) {
-            Some(x) => interpreter.environment.deref_mut().assign_at(
-                *x,
-                self.name.clone(),
-                value,
-            ),
+            Some(x) => interpreter
+                .environment
+                .deref_mut()
+                .assign_at(*x, self.name.clone(), value),
             None => interpreter
                 .globals
                 .deref_mut()

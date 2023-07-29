@@ -105,12 +105,14 @@ impl Environment {
 
 #[derive(Clone)]
 pub struct EnvRef {
-    environment: Rc<RefCell<Environment>>
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl EnvRef {
     pub fn new(environment: Environment) -> EnvRef {
-        EnvRef{ environment: Rc::new(RefCell::new(environment)) }
+        EnvRef {
+            environment: Rc::new(RefCell::new(environment)),
+        }
     }
 
     pub fn deref_mut(&self) -> std::cell::RefMut<'_, Environment> {

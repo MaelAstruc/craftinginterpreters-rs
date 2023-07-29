@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use crate::callable::{LoxCallable, LoxFunction};
-use crate::environment::{Environment, EnvRef};
+use crate::environment::{EnvRef, Environment};
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
 use crate::resolver::{FunctionType, Resolver};

@@ -76,9 +76,7 @@ impl LoxFunction {
         for (i, param) in self.declaration.params.iter().enumerate() {
             let arg = arguments.get(i).unwrap();
             match &interpreter.other_environment {
-                Some(x) => x
-                    .deref_mut()
-                    .define(param.lexeme.to_string(), arg.clone()),
+                Some(x) => x.deref_mut().define(param.lexeme.to_string(), arg.clone()),
                 None => panic!("Impossible, we defined it above."),
             }
         }
