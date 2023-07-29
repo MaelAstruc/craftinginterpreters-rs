@@ -282,8 +282,7 @@ impl Parser {
                 match expr {
                     ExprEnum::Var(x) => {
                         let name: Token = x.name;
-                        self.var_counter += 1;
-                        ExprEnum::Assign(Box::new(expr::Assign { name, value, id: self.var_counter }))
+                        ExprEnum::Assign(Box::new(expr::Assign { name, value, id: self.var_count() }))
                     }
                     _ => panic!("{} {}", equals, "Invalid assignment target."),
                 }
@@ -518,8 +517,7 @@ impl Parser {
             TokenType::Identifier(_) => {
                 let name: Token = token.clone();
                 self.advance();
-                self.var_counter += 1;
-                ExprEnum::Var(Box::new(expr::Var { name, id: self.var_counter }))
+                ExprEnum::Var(Box::new(expr::Var { name, id: self.var_count() }))
             }
             _ => panic!("{}", &self.peek().token_type),
         }
@@ -558,6 +556,11 @@ impl Parser {
             Lox::error_token(self.peek(), message);
             panic!()
         }
+    }
+
+    pub fn var_count(&mut self) -> usize {
+        self.var_counter += 1;
+        self.var_counter
     }
 
     pub fn error(&self, token: &Token, message: &str) {

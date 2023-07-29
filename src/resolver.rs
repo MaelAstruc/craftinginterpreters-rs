@@ -56,9 +56,9 @@ impl Resolver<'_> {
     }
 
     pub fn resolve_local(&mut self, expr: usize, name: Token) {
-        for (i, scope) in self.scopes.iter().enumerate().rev() {
+        for (i, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(&name.lexeme) {
-                self.interpreter.resolve(expr, self.scopes.len() - 1 - i);
+                self.interpreter.resolve(expr, i);
                 return;
             }
         }
