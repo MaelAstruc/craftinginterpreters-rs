@@ -1,11 +1,16 @@
 use std::collections::HashMap;
 
-use crate::{interpreter::Interpreter, token::Token, stmt::{Function, Stmt, self}, Lox};
+use crate::{
+    interpreter::Interpreter,
+    stmt::{self, Function, Stmt},
+    token::Token,
+    Lox,
+};
 
 #[derive(Clone)]
 pub enum FunctionType {
     NONE,
-    FUNCTION
+    FUNCTION,
 }
 
 pub struct Resolver<'a> {
@@ -16,7 +21,11 @@ pub struct Resolver<'a> {
 
 impl Resolver<'_> {
     pub fn new(interpreter: &mut Interpreter) -> Resolver {
-        Resolver { interpreter, scopes: Vec::new(), current_function: FunctionType::NONE }
+        Resolver {
+            interpreter,
+            scopes: Vec::new(),
+            current_function: FunctionType::NONE,
+        }
     }
 
     pub fn resolve(&mut self, statements: &Vec<Box<stmt::StmtEnum>>) {
@@ -41,17 +50,15 @@ impl Resolver<'_> {
                     Lox::error_token(name, "Already a variable with this name in this scope.");
                 }
                 x.insert(name.lexeme.clone(), false)
-            },
-            None => None
+            }
+            None => None,
         };
     }
 
     pub fn define(&mut self, name: &Token) {
-        match self.scopes.last_mut()  {
-            Some(x) => {
-                x.insert(name.lexeme.clone(), true)
-            },
-            None => None
+        match self.scopes.last_mut() {
+            Some(x) => x.insert(name.lexeme.clone(), true),
+            None => None,
         };
     }
 
@@ -63,7 +70,7 @@ impl Resolver<'_> {
             }
         }
     }
-    
+
     pub fn resolve_function(&mut self, function: &Function, function_type: FunctionType) {
         let enclosing_function = self.current_function.clone();
         self.current_function = function_type;
@@ -76,5 +83,4 @@ impl Resolver<'_> {
         self.end_scope();
         self.current_function = enclosing_function;
     }
-    
 }

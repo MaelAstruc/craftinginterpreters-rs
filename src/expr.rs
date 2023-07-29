@@ -1,6 +1,5 @@
 use std::fmt;
 
-use crate::Lox;
 use crate::callable::LoxCallable;
 use crate::interpreter::Interpreter;
 use crate::resolver::Resolver;
@@ -8,6 +7,7 @@ use crate::runtime_error::{LoxError, RuntimeError};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
+use crate::Lox;
 
 #[derive(Clone)]
 pub enum ExprEnum {
@@ -35,7 +35,7 @@ impl Expr for ExprEnum {
         }
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         match self {
             ExprEnum::Binary(x) => x.resolve(resolver),
             ExprEnum::Grouping(x) => x.resolve(resolver),
@@ -66,7 +66,7 @@ impl fmt::Display for ExprEnum {
 
 pub trait Expr: std::fmt::Display {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError>;
-    fn resolve(&self, resolver:  &mut Resolver);
+    fn resolve(&self, resolver: &mut Resolver);
 }
 
 #[derive(Clone)]
@@ -168,7 +168,7 @@ impl Expr for Binary {
         }
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         self.left.resolve(resolver);
         self.right.resolve(resolver);
     }
@@ -194,7 +194,7 @@ impl Expr for Grouping {
         self.expression.evaluate(interpreter)
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         self.expression.resolve(resolver);
     }
 }
@@ -215,7 +215,7 @@ impl Expr for Literal {
         Ok(self.value.clone())
     }
 
-    fn resolve(&self, _resolver:  &mut Resolver) { }
+    fn resolve(&self, _resolver: &mut Resolver) {}
 }
 
 impl fmt::Display for Literal {
@@ -256,7 +256,7 @@ impl Expr for Unary {
         }
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         self.right.resolve(resolver);
     }
 }
@@ -283,7 +283,10 @@ impl Expr for Var {
             Some(x) => match x.get(&self.name.lexeme) {
                 Some(y) => match y {
                     true => resolver.resolve_local(self.id, self.name.clone()),
-                    false => Lox::error_token(&self.name, "Can't read local variable in its own initializer."),
+                    false => Lox::error_token(
+                        &self.name,
+                        "Can't read local variable in its own initializer.",
+                    ),
                 },
                 None => resolver.resolve_local(self.id, self.name.clone()),
             },
@@ -309,18 +312,20 @@ impl Expr for Assign {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let value = self.value.evaluate(interpreter)?;
         match interpreter.locals.get(&self.id) {
-            Some(x) => {
-                interpreter
-                .environment
+            Some(x) => interpreter.environment.as_ref().borrow_mut().assign_at(
+                *x,
+                self.name.clone(),
+                value,
+            ),
+            None => interpreter
+                .globals
                 .as_ref()
                 .borrow_mut()
-                .assign_at(*x, self.name.clone(), value)
-            },
-            None => interpreter.globals.as_ref().borrow_mut().assign(self.name.clone(), value),
+                .assign(self.name.clone(), value),
         }
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         self.value.resolve(resolver);
         resolver.resolve_local(self.id, self.name.clone());
     }
@@ -351,7 +356,7 @@ impl Expr for Logic {
         }
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         self.left.resolve(resolver);
         self.right.resolve(resolver);
     }
@@ -412,7 +417,7 @@ impl Expr for Call {
         }
     }
 
-    fn resolve(&self, resolver:  &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) {
         self.callee.resolve(resolver);
         for argument in &self.arguments {
             argument.resolve(resolver);

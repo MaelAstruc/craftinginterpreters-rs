@@ -2,15 +2,15 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-use crate::environment::Environment;
-use crate::Lox;
 use crate::callable::{LoxCallable, LoxFunction};
+use crate::environment::Environment;
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
-use crate::resolver::{Resolver, FunctionType};
+use crate::resolver::{FunctionType, Resolver};
 use crate::runtime_error::{self, LoxError};
 use crate::token::Token;
 use crate::value::Value;
+use crate::Lox;
 
 #[derive(Clone)]
 pub enum StmtEnum {
@@ -167,7 +167,7 @@ impl Stmt for Block {
         let previous = interpreter.environment.clone();
         interpreter.environment = match &interpreter.other_environment {
             Some(x) => x.clone(),
-            None => Rc::new(RefCell::new(Environment::new(Some(previous.clone()))))
+            None => Rc::new(RefCell::new(Environment::new(Some(previous.clone())))),
         };
         let mut value = Ok(Value::Nil);
         for statement in &self.statements {
@@ -266,7 +266,7 @@ impl Stmt for If {
         self.then_branch.resolve(resolver);
         match &self.else_branch {
             Some(x) => x.resolve(resolver),
-            None => ()
+            None => (),
         }
     }
 }
@@ -307,10 +307,12 @@ impl Stmt for Return {
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
-        if let FunctionType::NONE = resolver.current_function { Lox::error_token(&self.keyword, "Can't return from top-level code.") };
+        if let FunctionType::NONE = resolver.current_function {
+            Lox::error_token(&self.keyword, "Can't return from top-level code.")
+        };
         match &self.value {
             Some(x) => x.resolve(resolver),
-            None => ()
+            None => (),
         }
     }
 }

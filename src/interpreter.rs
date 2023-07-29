@@ -61,16 +61,12 @@ impl Interpreter {
     pub fn look_up_var(&mut self, name: Token, expr: usize) -> Result<Value, LoxError> {
         let distance = self.locals.get(&expr);
         match distance {
-            Some(x) => {
-                self
+            Some(x) => self
                 .environment
                 .as_ref()
                 .borrow_mut()
-                .get_at(*x, name.lexeme)
-            },
-            None => {
-                self.globals.as_ref().borrow_mut().get(name)
-            }
+                .get_at(*x, name.lexeme),
+            None => self.globals.as_ref().borrow_mut().get(name),
         }
     }
 

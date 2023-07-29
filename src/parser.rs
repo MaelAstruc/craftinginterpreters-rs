@@ -15,7 +15,11 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Parser {
-        Parser { tokens, curr: 0 , var_counter: 0}
+        Parser {
+            tokens,
+            curr: 0,
+            var_counter: 0,
+        }
     }
 
     pub fn parse(&mut self) -> Vec<Box<StmtEnum>> {
@@ -282,7 +286,11 @@ impl Parser {
                 match expr {
                     ExprEnum::Var(x) => {
                         let name: Token = x.name;
-                        ExprEnum::Assign(Box::new(expr::Assign { name, value, id: self.var_count() }))
+                        ExprEnum::Assign(Box::new(expr::Assign {
+                            name,
+                            value,
+                            id: self.var_count(),
+                        }))
                     }
                     _ => panic!("{} {}", equals, "Invalid assignment target."),
                 }
@@ -517,7 +525,10 @@ impl Parser {
             TokenType::Identifier(_) => {
                 let name: Token = token.clone();
                 self.advance();
-                ExprEnum::Var(Box::new(expr::Var { name, id: self.var_count() }))
+                ExprEnum::Var(Box::new(expr::Var {
+                    name,
+                    id: self.var_count(),
+                }))
             }
             _ => panic!("{}", &self.peek().token_type),
         }

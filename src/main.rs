@@ -70,7 +70,7 @@ impl Lox {
         if self.had_error {
             return;
         }
-        
+
         let mut interpreter = Interpreter::new();
 
         let mut resolver = Resolver::new(&mut interpreter);
@@ -79,7 +79,7 @@ impl Lox {
         if self.had_error {
             return;
         }
-        
+
         interpreter.interpret(self, statements)
     }
 
