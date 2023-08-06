@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::callable::LoxCallable;
 use crate::interpreter::Interpreter;
-use crate::resolver::Resolver;
+use crate::resolver::{Resolver, ClassType};
 use crate::runtime_error::{LoxError, RuntimeError};
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -19,6 +19,9 @@ pub enum ExprEnum {
     Assign(Box<Assign>),
     Logic(Box<Logic>),
     Call(Box<Call>),
+    Get(Box<Get>),
+    Set(Box<Set>),
+    This(Box<This>),
 }
 
 impl Expr for ExprEnum {
@@ -32,6 +35,9 @@ impl Expr for ExprEnum {
             ExprEnum::Assign(x) => x.evaluate(interpreter),
             ExprEnum::Logic(x) => x.evaluate(interpreter),
             ExprEnum::Call(x) => x.evaluate(interpreter),
+            ExprEnum::Get(x) => x.evaluate(interpreter),
+            ExprEnum::Set(x) => x.evaluate(interpreter),
+            ExprEnum::This(x) => x.evaluate(interpreter),
         }
     }
 
@@ -45,6 +51,9 @@ impl Expr for ExprEnum {
             ExprEnum::Assign(x) => x.resolve(resolver),
             ExprEnum::Logic(x) => x.resolve(resolver),
             ExprEnum::Call(x) => x.resolve(resolver),
+            ExprEnum::Get(x) => x.resolve(resolver),
+            ExprEnum::Set(x) => x.resolve(resolver),
+            ExprEnum::This(x) => x.resolve(resolver),
         }
     }
 }
@@ -60,6 +69,9 @@ impl fmt::Display for ExprEnum {
             ExprEnum::Assign(x) => write!(f, "{}", x),
             ExprEnum::Logic(x) => write!(f, "{}", x),
             ExprEnum::Call(x) => write!(f, "{}", x),
+            ExprEnum::Get(x) => write!(f, "{}", x),
+            ExprEnum::Set(x) => write!(f, "{}", x),
+            ExprEnum::This(x) => write!(f, "{}", x),
         }
     }
 }
@@ -396,6 +408,20 @@ impl Expr for Call {
                     }
                     y.call(interpreter, arguments)
                 }
+                LoxCallable::LoxClass(y) => {
+                    if arguments.len() != y.arity() {
+                        let message: String = format!(
+                            "Expected {} arguments but got {}.",
+                            y.arity(),
+                            arguments.len()
+                        );
+                        return Err(LoxError::RuntimeError(RuntimeError {
+                            token: self.paren.clone(),
+                            message,
+                        }));
+                    }
+                    y.call(interpreter, arguments)
+                }
                 LoxCallable::LoxClock(y) => {
                     if arguments.len() != y.arity() {
                         let message: String = format!(
@@ -433,6 +459,94 @@ impl fmt::Display for Call {
         write!(f, "{}({})", self.callee, arguments)
     }
 }
+
+#[derive(Clone)]
+pub struct Get {
+    pub object: ExprEnum,
+    pub name: Token,
+}
+
+impl Expr for Get {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let object = self.object.evaluate(interpreter)?;
+        match object {
+            Value::LoxInstance(x) => x.get(self.name.clone()),
+            _ => Err(LoxError::RuntimeError(RuntimeError { token: self.name.clone(), message: "Only instances have properties.".into() }))
+        }
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        self.object.resolve(resolver);
+    }
+}
+
+impl fmt::Display for Get {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}.{}", self.object, self.name)
+    }
+}
+
+#[derive(Clone)]
+pub struct Set {
+    pub object: ExprEnum,
+    pub name: Token,
+    pub value: ExprEnum,
+}
+
+impl Expr for Set {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let object = self.object.evaluate(interpreter)?;
+
+
+        match object {
+            Value::LoxInstance(mut x) => {
+                let value = self.value.evaluate(interpreter)?;
+                x.set(self.name.clone(), value.clone());
+                Ok(value)
+            }
+            _ => Err(LoxError::RuntimeError(RuntimeError { token: self.name.clone(), message: "Only instances have fields.".into() }))
+        }
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        self.value.resolve(resolver);
+        self.object.resolve(resolver);
+    }
+}
+
+impl fmt::Display for Set {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{} = {}", self.object, self.value)
+    }
+}
+
+#[derive(Clone)]
+pub struct This {
+    pub keyword: Token,
+    pub id: usize,
+}
+
+impl Expr for This {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        interpreter.look_up_var(self.keyword.clone(), self.id)
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        if let ClassType::NONE = resolver.current_class  {
+            Lox::error_token(&self.keyword, "Can't use 'this' outside of a class.");
+            return;
+        }
+        
+        resolver.resolve_local(self.id, self.keyword.clone())
+    }
+}
+
+impl fmt::Display for This {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "this")
+    }
+}
+
 /*
 #[cfg(test)]
   mod tests_expr {

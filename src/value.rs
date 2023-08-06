@@ -1,4 +1,4 @@
-use crate::callable::LoxCallable;
+use crate::callable::{LoxCallable, InstanceRef};
 
 #[derive(Clone)]
 pub enum Value {
@@ -7,6 +7,7 @@ pub enum Value {
     String(String),
     Nil,
     Callable(LoxCallable),
+    LoxInstance(InstanceRef)
 }
 
 impl std::fmt::Display for Value {
@@ -18,8 +19,10 @@ impl std::fmt::Display for Value {
             Self::Nil => write!(f, "nil"),
             Self::Callable(x) => match x {
                 LoxCallable::LoxFunction(y) => write!(f, "{}", y),
+                LoxCallable::LoxClass(y) => write!(f, "{}", y),
                 LoxCallable::LoxClock(y) => write!(f, "{}", y),
             },
+            Self::LoxInstance(y) => write!(f, "{}", y.deref_mut()),
         }
     }
 }

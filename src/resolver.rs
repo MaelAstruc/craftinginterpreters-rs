@@ -10,13 +10,22 @@ use crate::{
 #[derive(Clone)]
 pub enum FunctionType {
     NONE,
+    INITIALIZER,
     FUNCTION,
+    METHOD,
+}
+
+#[derive(Clone)]
+pub enum ClassType {
+    NONE,
+    CLASS,
 }
 
 pub struct Resolver<'a> {
     pub interpreter: &'a mut Interpreter,
     pub scopes: Vec<HashMap<String, bool>>,
     pub current_function: FunctionType,
+    pub current_class: ClassType,
 }
 
 impl Resolver<'_> {
@@ -25,6 +34,7 @@ impl Resolver<'_> {
             interpreter,
             scopes: Vec::new(),
             current_function: FunctionType::NONE,
+            current_class: ClassType::NONE,
         }
     }
 
@@ -79,7 +89,9 @@ impl Resolver<'_> {
             self.declare(param);
             self.define(param);
         }
-        function.body.resolve(self);
+        for stmt in &function.body {
+            stmt.resolve(self)
+        }
         self.end_scope();
         self.current_function = enclosing_function;
     }

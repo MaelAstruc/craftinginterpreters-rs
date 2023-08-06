@@ -1,7 +1,7 @@
 use core::panic;
 
 use crate::expr::ExprEnum;
-use crate::stmt::StmtEnum;
+use crate::stmt::{StmtEnum, Function};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
@@ -38,6 +38,10 @@ impl Parser {
         //try {
         let token: &Token = self.peek();
         match token.token_type {
+            TokenType::Class => {
+                self.advance();
+                self.class_declaration()
+            }
             TokenType::Fun => {
                 self.advance();
                 self.function("function")
@@ -52,6 +56,29 @@ impl Parser {
         //    synchronize();
         //    return null;
         //}
+    }
+
+    pub fn class_declaration(&mut self) -> Box<StmtEnum> {
+        let name = self.consume(&TokenType::Identifier("".into()), "Expect class name.").clone();
+        self.consume(&TokenType::LeftBrace, "Expect '{' before class body.");
+
+        let mut methods: Vec<Box<Function>> = Vec::new();
+        
+        loop {
+            if self.check(&TokenType::RightBrace) || self.is_at_end() {
+                break
+            } else {
+                let function = match *self.function("method") {
+                    StmtEnum::Function(x) => x,
+                    _ => panic!("Function should return functions, check the code."),
+                };
+                methods.push(function)
+            }
+        }
+
+        self.consume(&TokenType::RightBrace, "Expect '}' after class body.");
+    
+        Box::new(StmtEnum::Class(Box::new(stmt::Class{ name, methods })))
     }
 
     pub fn statement(&mut self) -> Box<StmtEnum> {
@@ -150,9 +177,13 @@ impl Parser {
         let then_branch = *self.statement();
         let token = self.peek();
         let else_branch = match token.token_type {
-            TokenType::Else => Some(*self.statement()),
+            TokenType::Else => {
+                self.advance();
+                Some(*self.statement())
+            },
             _ => None,
         };
+
         Box::new(StmtEnum::If(Box::new(stmt::If {
             condition,
             then_branch,
@@ -248,13 +279,10 @@ impl Parser {
             &TokenType::LeftBrace,
             &format!("Expect '{{' before {} body.", kind),
         );
-        let body = stmt::Block {
-            statements: self.block(),
-        };
         Box::new(StmtEnum::Function(Box::new(stmt::Function {
             name,
             params,
-            body,
+            body: self.block(),
         })))
     }
 
@@ -290,6 +318,14 @@ impl Parser {
                             name,
                             value,
                             id: self.var_count(),
+                        }))
+                    }
+                    ExprEnum::Get(x) => {
+                        let get = x;
+                        ExprEnum::Set(Box::new(expr::Set {
+                            object: get.object,
+                            name: get.name,
+                            value,
                         }))
                     }
                     _ => panic!("{} {}", equals, "Invalid assignment target."),
@@ -443,6 +479,11 @@ impl Parser {
                     self.advance();
                     expr = self.finish_call(expr)
                 }
+                TokenType::Dot => {
+                    self.advance();
+                    let name = self.consume(&TokenType::Identifier("".into()), "Expect property name after '.'.").clone();
+                    expr = ExprEnum::Get(Box::new(expr::Get{ object: expr, name }));
+                }
                 _ => break,
             }
         }
@@ -527,6 +568,14 @@ impl Parser {
                 self.advance();
                 ExprEnum::Var(Box::new(expr::Var {
                     name,
+                    id: self.var_count(),
+                }))
+            }
+            TokenType::This => {
+                let keyword: Token = token.clone();
+                self.advance();
+                ExprEnum::This(Box::new(expr::This {
+                    keyword,
                     id: self.var_count(),
                 }))
             }

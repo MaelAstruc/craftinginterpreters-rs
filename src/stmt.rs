@@ -1,11 +1,12 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
-use crate::callable::{LoxCallable, LoxFunction};
+use crate::callable::{LoxCallable, LoxFunction, LoxClass};
 use crate::environment::{EnvRef, Environment};
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
-use crate::resolver::{FunctionType, Resolver};
+use crate::resolver::{FunctionType, Resolver, ClassType};
 use crate::runtime_error::{self, LoxError};
 use crate::token::Token;
 use crate::value::Value;
@@ -13,6 +14,7 @@ use crate::Lox;
 
 #[derive(Clone)]
 pub enum StmtEnum {
+    Class(Box<Class>),
     Expression(Box<Expression>),
     Print(Box<Print>),
     Var(Box<Var>),
@@ -26,6 +28,7 @@ pub enum StmtEnum {
 impl Stmt for StmtEnum {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         match self {
+            StmtEnum::Class(x) => x.execute(interpreter),
             StmtEnum::Block(x) => x.execute(interpreter),
             StmtEnum::Expression(x) => x.execute(interpreter),
             StmtEnum::Function(x) => x.execute(interpreter),
@@ -39,6 +42,7 @@ impl Stmt for StmtEnum {
 
     fn resolve(&self, resolver: &mut Resolver) {
         match self {
+            StmtEnum::Class(x) => x.resolve(resolver),
             StmtEnum::Block(x) => x.resolve(resolver),
             StmtEnum::Expression(x) => x.resolve(resolver),
             StmtEnum::Function(x) => x.resolve(resolver),
@@ -54,6 +58,7 @@ impl Stmt for StmtEnum {
 impl fmt::Display for StmtEnum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            StmtEnum::Class(x) => write!(f, "{}", x),
             StmtEnum::Block(x) => write!(f, "{}", x),
             StmtEnum::Expression(x) => write!(f, "{}", x),
             StmtEnum::Function(x) => write!(f, "{}", x),
@@ -163,10 +168,7 @@ pub struct Block {
 impl Stmt for Block {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let previous = interpreter.environment.clone();
-        interpreter.environment = match &interpreter.other_environment {
-            Some(x) => x.clone(),
-            None => EnvRef::new(Environment::new(Some(previous.clone()))),
-        };
+        interpreter.environment = EnvRef::new(Environment::new(Some(interpreter.environment.clone())));
         let mut value = Ok(Value::Nil);
         for statement in &self.statements {
             match statement.execute(interpreter) {
@@ -203,10 +205,62 @@ impl fmt::Display for Block {
 }
 
 #[derive(Clone)]
+pub struct Class {
+    pub name: Token,
+    pub methods: Vec<Box<Function>>
+}
+
+impl Stmt for Class {
+    fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        interpreter.environment.deref_mut().define(self.name.lexeme.clone(), Value::Nil);
+        let mut methods: HashMap<String, LoxFunction> = HashMap::new();
+        for method in &self.methods {
+            let function = LoxFunction{
+                closure: interpreter.environment.clone(),
+                declaration: (**method).clone(),
+                is_initializer: method.name.lexeme == "init"
+            };
+            methods.insert(method.name.lexeme.clone(), function);
+        }
+        let klass = Value::Callable(LoxCallable::LoxClass(Rc::new(LoxClass{ name: self.name.lexeme.clone(), methods })));
+        interpreter.environment.deref_mut().assign(self.name.clone(), klass)?;
+        Ok(Value::Nil)
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        let enclosing_class = resolver.current_class.clone();
+        resolver.current_class = ClassType::CLASS;
+
+        resolver.declare(&self.name);
+        resolver.define(&self.name);
+
+        resolver.begin_scope();
+        if let Some(x) = resolver.scopes.last_mut() { x.insert("this".into(), true); }
+
+        for method in &self.methods {
+            let declaration = match method.name.lexeme == "init" {
+                true => FunctionType::INITIALIZER,
+                false => FunctionType::METHOD,
+            };
+            resolver.resolve_function(&method, declaration);
+        }
+
+        resolver.end_scope();
+        resolver.current_class = enclosing_class.clone();
+    }
+}
+
+impl fmt::Display for Class {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "class {}", self.name)
+    }
+}
+
+#[derive(Clone)]
 pub struct Function {
     pub name: Token,
     pub params: Vec<Token>,
-    pub body: Block,
+    pub body: Vec<Box<StmtEnum>>,
 }
 
 impl Stmt for Function {
@@ -214,6 +268,7 @@ impl Stmt for Function {
         let function = Value::Callable(LoxCallable::LoxFunction(Rc::new(LoxFunction {
             closure: interpreter.environment.clone(),
             declaration: self.clone(),
+            is_initializer: false,
         })));
         interpreter
             .environment
@@ -231,7 +286,7 @@ impl Stmt for Function {
 
 impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {}", &self.name, &self.body)
+        write!(f, "{}", &self.name)
     }
 }
 
@@ -307,9 +362,10 @@ impl Stmt for Return {
         if let FunctionType::NONE = resolver.current_function {
             Lox::error_token(&self.keyword, "Can't return from top-level code.")
         };
-        match &self.value {
-            Some(x) => x.resolve(resolver),
-            None => (),
+        match (&self.value, &resolver.current_function) {
+            (Some(_), FunctionType::INITIALIZER) => Lox::error_token(&self.keyword,"Can't return a value from an initializer."),
+            (Some(x), _) => x.resolve(resolver),
+            (None, _) => (),
         }
     }
 }

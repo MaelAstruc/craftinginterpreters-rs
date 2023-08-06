@@ -57,8 +57,8 @@ impl Interpreter {
         self.locals.insert(expr, depth);
     }
 
-    pub fn look_up_var(&mut self, name: Token, expr: usize) -> Result<Value, LoxError> {
-        let distance = self.locals.get(&expr);
+    pub fn look_up_var(&mut self, name: Token, expr_id: usize) -> Result<Value, LoxError> {
+        let distance = self.locals.get(&expr_id);
         match distance {
             Some(x) => self.environment.deref_mut().get_at(*x, name.lexeme),
             None => self.globals.deref_mut().get(name),
@@ -88,11 +88,13 @@ impl Interpreter {
             (Value::Bool(x), Value::Bool(y)) => x == y,
             (Value::Nil, Value::Nil) => true,
             (Value::Callable(_), Value::Callable(_)) => false,
+            (Value::LoxInstance(_), Value::LoxInstance(_)) => false,
             (Value::Bool(_), _) => false,
             (Value::Number(_), _) => false,
             (Value::String(_), _) => false,
             (Value::Nil, _) => false,
             (Value::Callable(_), _) => false,
+            (Value::LoxInstance(_), _) => false,
         }
     }
 }
