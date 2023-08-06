@@ -1,4 +1,4 @@
-use crate::callable::{LoxCallable, InstanceRef};
+use crate::callable::{InstanceRef, LoxCallable};
 
 #[derive(Clone)]
 pub enum Value {
@@ -7,7 +7,7 @@ pub enum Value {
     String(String),
     Nil,
     Callable(LoxCallable),
-    LoxInstance(InstanceRef)
+    LoxInstance(InstanceRef),
 }
 
 impl std::fmt::Display for Value {

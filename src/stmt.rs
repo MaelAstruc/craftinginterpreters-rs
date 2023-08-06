@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
-use crate::callable::{LoxCallable, LoxFunction, LoxClass};
+use crate::callable::{LoxCallable, LoxClass, LoxFunction};
 use crate::environment::{EnvRef, Environment};
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
-use crate::resolver::{FunctionType, Resolver, ClassType};
+use crate::resolver::{ClassType, FunctionType, Resolver};
 use crate::runtime_error::{self, LoxError};
 use crate::token::Token;
 use crate::value::Value;
@@ -168,7 +168,8 @@ pub struct Block {
 impl Stmt for Block {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let previous = interpreter.environment.clone();
-        interpreter.environment = EnvRef::new(Environment::new(Some(interpreter.environment.clone())));
+        interpreter.environment =
+            EnvRef::new(Environment::new(Some(interpreter.environment.clone())));
         let mut value = Ok(Value::Nil);
         for statement in &self.statements {
             match statement.execute(interpreter) {
@@ -207,23 +208,32 @@ impl fmt::Display for Block {
 #[derive(Clone)]
 pub struct Class {
     pub name: Token,
-    pub methods: Vec<Box<Function>>
+    pub methods: Vec<Box<Function>>,
 }
 
 impl Stmt for Class {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        interpreter.environment.deref_mut().define(self.name.lexeme.clone(), Value::Nil);
+        interpreter
+            .environment
+            .deref_mut()
+            .define(self.name.lexeme.clone(), Value::Nil);
         let mut methods: HashMap<String, LoxFunction> = HashMap::new();
         for method in &self.methods {
-            let function = LoxFunction{
+            let function = LoxFunction {
                 closure: interpreter.environment.clone(),
                 declaration: (**method).clone(),
-                is_initializer: method.name.lexeme == "init"
+                is_initializer: method.name.lexeme == "init",
             };
             methods.insert(method.name.lexeme.clone(), function);
         }
-        let klass = Value::Callable(LoxCallable::LoxClass(Rc::new(LoxClass{ name: self.name.lexeme.clone(), methods })));
-        interpreter.environment.deref_mut().assign(self.name.clone(), klass)?;
+        let klass = Value::Callable(LoxCallable::LoxClass(Rc::new(LoxClass {
+            name: self.name.lexeme.clone(),
+            methods,
+        })));
+        interpreter
+            .environment
+            .deref_mut()
+            .assign(self.name.clone(), klass)?;
         Ok(Value::Nil)
     }
 
@@ -235,7 +245,9 @@ impl Stmt for Class {
         resolver.define(&self.name);
 
         resolver.begin_scope();
-        if let Some(x) = resolver.scopes.last_mut() { x.insert("this".into(), true); }
+        if let Some(x) = resolver.scopes.last_mut() {
+            x.insert("this".into(), true);
+        }
 
         for method in &self.methods {
             let declaration = match method.name.lexeme == "init" {
@@ -363,7 +375,9 @@ impl Stmt for Return {
             Lox::error_token(&self.keyword, "Can't return from top-level code.")
         };
         match (&self.value, &resolver.current_function) {
-            (Some(_), FunctionType::INITIALIZER) => Lox::error_token(&self.keyword,"Can't return a value from an initializer."),
+            (Some(_), FunctionType::INITIALIZER) => {
+                Lox::error_token(&self.keyword, "Can't return a value from an initializer.")
+            }
             (Some(x), _) => x.resolve(resolver),
             (None, _) => (),
         }

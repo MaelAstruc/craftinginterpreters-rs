@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::callable::LoxCallable;
 use crate::interpreter::Interpreter;
-use crate::resolver::{Resolver, ClassType};
+use crate::resolver::{ClassType, Resolver};
 use crate::runtime_error::{LoxError, RuntimeError};
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -471,7 +471,10 @@ impl Expr for Get {
         let object = self.object.evaluate(interpreter)?;
         match object {
             Value::LoxInstance(x) => x.get(self.name.clone()),
-            _ => Err(LoxError::RuntimeError(RuntimeError { token: self.name.clone(), message: "Only instances have properties.".into() }))
+            _ => Err(LoxError::RuntimeError(RuntimeError {
+                token: self.name.clone(),
+                message: "Only instances have properties.".into(),
+            })),
         }
     }
 
@@ -497,14 +500,16 @@ impl Expr for Set {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let object = self.object.evaluate(interpreter)?;
 
-
         match object {
             Value::LoxInstance(mut x) => {
                 let value = self.value.evaluate(interpreter)?;
                 x.set(self.name.clone(), value.clone());
                 Ok(value)
             }
-            _ => Err(LoxError::RuntimeError(RuntimeError { token: self.name.clone(), message: "Only instances have fields.".into() }))
+            _ => Err(LoxError::RuntimeError(RuntimeError {
+                token: self.name.clone(),
+                message: "Only instances have fields.".into(),
+            })),
         }
     }
 
@@ -532,11 +537,11 @@ impl Expr for This {
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
-        if let ClassType::NONE = resolver.current_class  {
+        if let ClassType::NONE = resolver.current_class {
             Lox::error_token(&self.keyword, "Can't use 'this' outside of a class.");
             return;
         }
-        
+
         resolver.resolve_local(self.id, self.keyword.clone())
     }
 }

@@ -86,7 +86,9 @@ impl LoxFunction {
 
         for (i, param) in self.declaration.params.iter().enumerate() {
             let arg = arguments.get(i).unwrap();
-            environment.deref_mut().define(param.lexeme.to_string(), arg.clone());
+            environment
+                .deref_mut()
+                .define(param.lexeme.to_string(), arg.clone());
         }
 
         let previous = interpreter.environment.clone();
@@ -100,26 +102,28 @@ impl LoxFunction {
         match result {
             Ok(_) => (),
             Err(x) => match x {
-                LoxError::RuntimeError(_) if self.is_initializer => return self.closure.deref_mut().get_at(0, "this".into()),
+                LoxError::RuntimeError(_) if self.is_initializer => {
+                    return self.closure.deref_mut().get_at(0, "this".into())
+                }
                 LoxError::RuntimeError(_) => return Err(x),
                 LoxError::Return(y) => return Ok(y.value),
-            }
+            },
         };
-        
+
         if self.is_initializer {
             return self.closure.deref_mut().get_at(0, "this".into());
         }
 
         Ok(Value::Nil)
     }
-    
-    pub fn bind(&self, instance: InstanceRef)  -> LoxFunction {
+
+    pub fn bind(&self, instance: InstanceRef) -> LoxFunction {
         let mut environment = crate::environment::Environment::new(Some(self.closure.clone()));
         environment.define("this".into(), Value::LoxInstance(instance));
-        LoxFunction{
+        LoxFunction {
             closure: EnvRef::new(environment),
             declaration: self.declaration.clone(),
-            is_initializer: self.is_initializer
+            is_initializer: self.is_initializer,
         }
     }
 }
@@ -133,21 +137,18 @@ impl fmt::Display for LoxFunction {
 #[derive(Clone)]
 pub struct LoxClass {
     pub name: String,
-    pub methods: HashMap<String, LoxFunction>
+    pub methods: HashMap<String, LoxFunction>,
 }
 
 impl LoxClass {
     pub fn new(name: String, methods: HashMap<String, LoxFunction>) -> Self {
-        LoxClass {
-            name,
-            methods,
-        }
+        LoxClass { name, methods }
     }
 
     pub fn arity(&self) -> usize {
         match self.find_method("init".into()) {
             Some(x) => x.arity(),
-            None => 0
+            None => 0,
         }
     }
 
@@ -163,7 +164,7 @@ impl LoxClass {
         Ok(Value::LoxInstance(instance))
     }
 
-    pub fn find_method(&self, name: String) -> Option<&LoxFunction>{
+    pub fn find_method(&self, name: String) -> Option<&LoxFunction> {
         self.methods.get(&name)
     }
 }
@@ -184,7 +185,7 @@ impl LoxInstance {
     pub fn new(klass: Rc<LoxClass>) -> Self {
         LoxInstance {
             klass,
-            fields: HashMap::new()
+            fields: HashMap::new(),
         }
     }
 }
@@ -194,7 +195,6 @@ impl fmt::Display for LoxInstance {
         write!(f, "{} instance", self.klass.name)
     }
 }
-
 
 #[derive(Clone)]
 pub struct InstanceRef {
@@ -213,19 +213,25 @@ impl InstanceRef {
     }
 
     pub fn get(&self, name: Token) -> Result<Value, LoxError> {
-        if let Some(x) = self.deref_mut().fields.get(&name.lexeme) { return Ok(x.clone()) };
+        if let Some(x) = self.deref_mut().fields.get(&name.lexeme) {
+            return Ok(x.clone());
+        };
         if let Some(x) = self.deref_mut().klass.find_method(name.lexeme.clone()) {
-            return Ok(Value::Callable(LoxCallable::LoxFunction(Rc::new(x.bind(self.clone())))))
+            return Ok(Value::Callable(LoxCallable::LoxFunction(Rc::new(
+                x.bind(self.clone()),
+            ))));
         };
 
-        Err(LoxError::RuntimeError(RuntimeError { token: name.clone(), message: format!("Undefined property '{}'.", name.lexeme) }))
+        Err(LoxError::RuntimeError(RuntimeError {
+            token: name.clone(),
+            message: format!("Undefined property '{}'.", name.lexeme),
+        }))
     }
-    
+
     pub fn set(&mut self, name: Token, value: Value) {
         self.deref_mut().fields.insert(name.lexeme, value);
     }
 }
-
 
 pub struct LoxClock;
 
