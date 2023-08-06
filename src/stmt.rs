@@ -242,11 +242,11 @@ impl Stmt for Class {
                 true => FunctionType::INITIALIZER,
                 false => FunctionType::METHOD,
             };
-            resolver.resolve_function(&method, declaration);
+            resolver.resolve_function(method, declaration);
         }
 
         resolver.end_scope();
-        resolver.current_class = enclosing_class.clone();
+        resolver.current_class = enclosing_class;
     }
 }
 

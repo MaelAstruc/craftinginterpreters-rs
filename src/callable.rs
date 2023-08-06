@@ -90,7 +90,7 @@ impl LoxFunction {
         }
 
         let previous = interpreter.environment.clone();
-        interpreter.environment = environment.clone();
+        interpreter.environment = environment;
         let mut result = Ok(Value::Nil);
         for stmt in &self.declaration.body {
             result = stmt.execute(interpreter);
@@ -160,7 +160,7 @@ impl LoxClass {
         if let Some(x) = self.find_method("init".into()) {
             x.bind(instance.clone()).call(interpreter, arguments)?;
         }
-        return Ok(Value::LoxInstance(instance));
+        Ok(Value::LoxInstance(instance))
     }
 
     pub fn find_method(&self, name: String) -> Option<&LoxFunction>{
@@ -213,7 +213,7 @@ impl InstanceRef {
     }
 
     pub fn get(&self, name: Token) -> Result<Value, LoxError> {
-        if let Some(x) = self.deref_mut().fields.get(&name.lexeme.clone()) { return Ok(x.clone()) };
+        if let Some(x) = self.deref_mut().fields.get(&name.lexeme) { return Ok(x.clone()) };
         if let Some(x) = self.deref_mut().klass.find_method(name.lexeme.clone()) {
             return Ok(Value::Callable(LoxCallable::LoxFunction(Rc::new(x.bind(self.clone())))))
         };
