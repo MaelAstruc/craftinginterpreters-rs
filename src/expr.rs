@@ -21,6 +21,7 @@ pub enum ExprEnum {
     Call(Box<Call>),
     Get(Box<Get>),
     Set(Box<Set>),
+    Super(Box<Super>),
     This(Box<This>),
 }
 
@@ -37,6 +38,7 @@ impl Expr for ExprEnum {
             ExprEnum::Call(x) => x.evaluate(interpreter),
             ExprEnum::Get(x) => x.evaluate(interpreter),
             ExprEnum::Set(x) => x.evaluate(interpreter),
+            ExprEnum::Super(x) => x.evaluate(interpreter),
             ExprEnum::This(x) => x.evaluate(interpreter),
         }
     }
@@ -53,6 +55,7 @@ impl Expr for ExprEnum {
             ExprEnum::Call(x) => x.resolve(resolver),
             ExprEnum::Get(x) => x.resolve(resolver),
             ExprEnum::Set(x) => x.resolve(resolver),
+            ExprEnum::Super(x) => x.resolve(resolver),
             ExprEnum::This(x) => x.resolve(resolver),
         }
     }
@@ -71,6 +74,7 @@ impl fmt::Display for ExprEnum {
             ExprEnum::Call(x) => write!(f, "{}", x),
             ExprEnum::Get(x) => write!(f, "{}", x),
             ExprEnum::Set(x) => write!(f, "{}", x),
+            ExprEnum::Super(x) => write!(f, "{}", x),
             ExprEnum::This(x) => write!(f, "{}", x),
         }
     }
@@ -523,6 +527,72 @@ impl fmt::Display for Set {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{} = {}", self.object, self.value)
     }
+}
+
+#[derive(Clone)]
+pub struct Super {
+    pub keyword: Token,
+    pub method: Token,
+    pub id: usize,
+}
+
+impl Expr for Super {
+    fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let distance = match interpreter.locals.get(&self.id) {
+            Some(x) => x,
+            None => todo!()
+        };
+
+        let superclass = interpreter
+            .environment
+            .deref_mut()
+            .get_at(*distance, "super".into())?;
+        let superclass = match &superclass {
+            Value::Callable(x) => match x {
+                LoxCallable::LoxClass(y) => y,
+                _ => panic!("Expected a Lox Class")
+            },
+            _ => panic!("Expected a Lox Callable")
+        };
+
+        let object = interpreter
+            .environment
+            .deref_mut()
+            .get_at(distance - 1, "this".into())?;
+        let object = match object {
+            Value::LoxInstance(x) => x,
+            _ => panic!("Expected an instance")
+        };
+
+        let method = match superclass.find_method(self.method.lexeme.clone()) {
+            Some(x) => x,
+            None => return Err(LoxError::RuntimeError(RuntimeError {
+                token: self.method.clone(),
+                message: format!("Undefined property '{}'.", self.method.lexeme)
+            }))
+        };
+    Ok(Value::Callable(LoxCallable::LoxFunction(std::rc::Rc::new(method.bind(object)))))
+    }
+
+    fn resolve(&self, resolver: &mut Resolver) {
+        match resolver.current_class {
+            ClassType::NONE => Lox::error_token(&self.keyword, "Can't use 'super' outside of a class.".into()),
+            ClassType::CLASS => Lox::error_token(&self.keyword, "Can't use 'super' in a class with no superclass.".into()),
+            ClassType::SUBCLASS => resolver.resolve_local(self.id, self.keyword.clone()),
+
+        }
+    }
+}
+
+impl fmt::Display for Super {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "super")
+    }
+}
+
+#[derive(Clone)]
+pub struct SuperRef {
+    pub superclass: std::rc::Rc<std::cell::RefCell<Super>>,
 }
 
 #[derive(Clone)]

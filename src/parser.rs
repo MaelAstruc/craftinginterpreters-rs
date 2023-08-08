@@ -62,6 +62,16 @@ impl Parser {
         let name = self
             .consume(&TokenType::Identifier("".into()), "Expect class name.")
             .clone();
+
+        let superclass = match &self.peek().token_type {
+            &TokenType::Less => {
+                self.advance();
+                let token = self.consume(&TokenType::Identifier("".into()), "Expect superclass name.");
+                Some(expr::Var{ name: token.clone(), id: self.var_count() })
+            }
+            _ => None
+        };
+
         self.consume(&TokenType::LeftBrace, "Expect '{' before class body.");
 
         let mut methods: Vec<Box<Function>> = Vec::new();
@@ -80,7 +90,7 @@ impl Parser {
 
         self.consume(&TokenType::RightBrace, "Expect '}' after class body.");
 
-        Box::new(StmtEnum::Class(Box::new(stmt::Class { name, methods })))
+        Box::new(StmtEnum::Class(Box::new(stmt::Class { name, superclass, methods })))
     }
 
     pub fn statement(&mut self) -> Box<StmtEnum> {
@@ -577,6 +587,16 @@ impl Parser {
                     name,
                     id: self.var_count(),
                 }))
+            }
+            TokenType::Super => {
+                let keyword: Token = token.clone();
+                self.advance();
+                self.consume(&TokenType::Dot, "Expect '.' after 'super'.");
+                let method = self.consume(
+                    &TokenType::Identifier("".into()),
+                    "Expect superclass method name."
+                ).clone();
+                ExprEnum::Super(Box::new(expr::Super { keyword, method, id: self.var_count() }))
             }
             TokenType::This => {
                 let keyword: Token = token.clone();

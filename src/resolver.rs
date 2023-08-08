@@ -19,6 +19,7 @@ pub enum FunctionType {
 pub enum ClassType {
     NONE,
     CLASS,
+    SUBCLASS,
 }
 
 pub struct Resolver<'a> {

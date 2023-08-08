@@ -137,12 +137,13 @@ impl fmt::Display for LoxFunction {
 #[derive(Clone)]
 pub struct LoxClass {
     pub name: String,
+    pub superclass: Option<Rc<LoxClass>>,
     pub methods: HashMap<String, LoxFunction>,
 }
 
 impl LoxClass {
-    pub fn new(name: String, methods: HashMap<String, LoxFunction>) -> Self {
-        LoxClass { name, methods }
+    pub fn new(name: String, superclass: Option<Rc<LoxClass>>, methods: HashMap<String, LoxFunction>) -> Self {
+        LoxClass { name, superclass, methods }
     }
 
     pub fn arity(&self) -> usize {
@@ -165,7 +166,15 @@ impl LoxClass {
     }
 
     pub fn find_method(&self, name: String) -> Option<&LoxFunction> {
-        self.methods.get(&name)
+        if let Some(x) = self.methods.get(&name) {
+            return Some(x);
+        }
+
+        if let Some(x) = &self.superclass {
+            return x.find_method(name);
+        }
+
+        None
     }
 }
 

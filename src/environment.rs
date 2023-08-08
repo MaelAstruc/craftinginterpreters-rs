@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub struct Environment {
-    enclosing: Option<EnvRef>,
+    pub enclosing: Option<EnvRef>,
     values: HashMap<String, Value>,
 }
 

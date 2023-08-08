@@ -7,7 +7,7 @@ use crate::environment::{EnvRef, Environment};
 use crate::expr::{Expr, ExprEnum};
 use crate::interpreter::Interpreter;
 use crate::resolver::{ClassType, FunctionType, Resolver};
-use crate::runtime_error::{self, LoxError};
+use crate::runtime_error::{self, LoxError, RuntimeError};
 use crate::token::Token;
 use crate::value::Value;
 use crate::Lox;
@@ -208,15 +208,47 @@ impl fmt::Display for Block {
 #[derive(Clone)]
 pub struct Class {
     pub name: Token,
+    pub superclass: Option<crate::expr::Var>,
     pub methods: Vec<Box<Function>>,
 }
 
 impl Stmt for Class {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
+        let superclass = match &self.superclass {
+            Some(x) => {
+                match x.evaluate(interpreter)? {
+                    Value::Callable(y) => {
+                        match y {
+                            LoxCallable::LoxClass(z) => Some(z),
+                            _ => return Err(LoxError::RuntimeError(RuntimeError{
+                                token: x.name.clone(),
+                                message: "Superclass must be a class.".into()
+                            }))
+                        }
+                    }
+                    _ => return Err(LoxError::RuntimeError(RuntimeError{
+                        token: x.name.clone(),
+                        message: "Superclass must be a class.".into()
+                    }))
+                }
+            }
+            None => None
+        };
+        
         interpreter
             .environment
             .deref_mut()
             .define(self.name.lexeme.clone(), Value::Nil);
+        
+        if let Some(x) = superclass.clone() {
+            interpreter.environment = EnvRef::new(Environment::new(Some(interpreter.environment.clone())));
+            interpreter.environment.deref_mut().define(
+                "super".into(),
+                Value::Callable(LoxCallable::LoxClass(x))
+            )
+            // TO DO: Super class as Value Rc RefCell
+        }
+
         let mut methods: HashMap<String, LoxFunction> = HashMap::new();
         for method in &self.methods {
             let function = LoxFunction {
@@ -226,14 +258,24 @@ impl Stmt for Class {
             };
             methods.insert(method.name.lexeme.clone(), function);
         }
+        
         let klass = Value::Callable(LoxCallable::LoxClass(Rc::new(LoxClass {
             name: self.name.lexeme.clone(),
+            superclass: superclass,
             methods,
         })));
+        
+        if self.superclass.is_some() {
+            if let Some(x) = &interpreter.environment.clone().deref_mut().enclosing {
+                interpreter.environment = x.clone();
+            }
+        }
+
         interpreter
             .environment
             .deref_mut()
             .assign(self.name.clone(), klass)?;
+        
         Ok(Value::Nil)
     }
 
@@ -243,6 +285,21 @@ impl Stmt for Class {
 
         resolver.declare(&self.name);
         resolver.define(&self.name);
+
+        if let Some(x) = &self.superclass {
+            if x.name.lexeme == self.name.lexeme {
+                Lox::error_token(&x.name,"A class can't inherit from itself.")
+            }
+            resolver.current_class = ClassType::SUBCLASS;
+            x.resolve(resolver)
+        }
+
+        if self.superclass.is_some() {
+            resolver.begin_scope();
+            if let Some(x) = resolver.scopes.last_mut() {
+                x.insert("super".into(), true);
+            }
+        }
 
         resolver.begin_scope();
         if let Some(x) = resolver.scopes.last_mut() {
@@ -258,6 +315,11 @@ impl Stmt for Class {
         }
 
         resolver.end_scope();
+
+        if self.superclass.is_some() {
+            resolver.end_scope();
+        }
+        
         resolver.current_class = enclosing_class;
     }
 }
