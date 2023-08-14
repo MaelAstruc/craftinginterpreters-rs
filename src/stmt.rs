@@ -215,37 +215,38 @@ pub struct Class {
 impl Stmt for Class {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let superclass = match &self.superclass {
-            Some(x) => {
-                match x.evaluate(interpreter)? {
-                    Value::Callable(y) => {
-                        match y {
-                            LoxCallable::LoxClass(z) => Some(z),
-                            _ => return Err(LoxError::RuntimeError(RuntimeError{
-                                token: x.name.clone(),
-                                message: "Superclass must be a class.".into()
-                            }))
-                        }
+            Some(x) => match x.evaluate(interpreter)? {
+                Value::Callable(y) => match y {
+                    LoxCallable::LoxClass(z) => Some(z),
+                    _ => {
+                        return Err(LoxError::RuntimeError(RuntimeError {
+                            token: x.name.clone(),
+                            message: "Superclass must be a class.".into(),
+                        }))
                     }
-                    _ => return Err(LoxError::RuntimeError(RuntimeError{
+                },
+                _ => {
+                    return Err(LoxError::RuntimeError(RuntimeError {
                         token: x.name.clone(),
-                        message: "Superclass must be a class.".into()
+                        message: "Superclass must be a class.".into(),
                     }))
                 }
-            }
-            None => None
+            },
+            None => None,
         };
-        
+
         interpreter
             .environment
             .deref_mut()
             .define(self.name.lexeme.clone(), Value::Nil);
-        
+
         if let Some(x) = superclass.clone() {
-            interpreter.environment = EnvRef::new(Environment::new(Some(interpreter.environment.clone())));
-            interpreter.environment.deref_mut().define(
-                "super".into(),
-                Value::Callable(LoxCallable::LoxClass(x))
-            )
+            interpreter.environment =
+                EnvRef::new(Environment::new(Some(interpreter.environment.clone())));
+            interpreter
+                .environment
+                .deref_mut()
+                .define("super".into(), Value::Callable(LoxCallable::LoxClass(x)))
             // TO DO: Super class as Value Rc RefCell
         }
 
@@ -258,13 +259,13 @@ impl Stmt for Class {
             };
             methods.insert(method.name.lexeme.clone(), function);
         }
-        
+
         let klass = Value::Callable(LoxCallable::LoxClass(Rc::new(LoxClass {
             name: self.name.lexeme.clone(),
             superclass,
             methods,
         })));
-        
+
         if self.superclass.is_some() {
             if let Some(x) = &interpreter.environment.clone().deref_mut().enclosing {
                 interpreter.environment = x.clone();
@@ -275,7 +276,7 @@ impl Stmt for Class {
             .environment
             .deref_mut()
             .assign(self.name.clone(), klass)?;
-        
+
         Ok(Value::Nil)
     }
 
@@ -288,7 +289,7 @@ impl Stmt for Class {
 
         if let Some(x) = &self.superclass {
             if x.name.lexeme == self.name.lexeme {
-                Lox::error_token(&x.name,"A class can't inherit from itself.")
+                Lox::error_token(&x.name, "A class can't inherit from itself.")
             }
             resolver.current_class = ClassType::SUBCLASS;
             x.resolve(resolver)
@@ -319,7 +320,7 @@ impl Stmt for Class {
         if self.superclass.is_some() {
             resolver.end_scope();
         }
-        
+
         resolver.current_class = enclosing_class;
     }
 }

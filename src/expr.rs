@@ -540,7 +540,7 @@ impl Expr for Super {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let distance = match interpreter.locals.get(&self.id) {
             Some(x) => x,
-            None => todo!()
+            None => todo!(),
         };
 
         let superclass = interpreter
@@ -550,9 +550,9 @@ impl Expr for Super {
         let superclass = match &superclass {
             Value::Callable(x) => match x {
                 LoxCallable::LoxClass(y) => y,
-                _ => panic!("Expected a Lox Class")
+                _ => panic!("Expected a Lox Class"),
             },
-            _ => panic!("Expected a Lox Callable")
+            _ => panic!("Expected a Lox Callable"),
         };
 
         let object = interpreter
@@ -561,25 +561,33 @@ impl Expr for Super {
             .get_at(distance - 1, "this".into())?;
         let object = match object {
             Value::LoxInstance(x) => x,
-            _ => panic!("Expected an instance")
+            _ => panic!("Expected an instance"),
         };
 
         let method = match superclass.find_method(self.method.lexeme.clone()) {
             Some(x) => x,
-            None => return Err(LoxError::RuntimeError(RuntimeError {
-                token: self.method.clone(),
-                message: format!("Undefined property '{}'.", self.method.lexeme)
-            }))
+            None => {
+                return Err(LoxError::RuntimeError(RuntimeError {
+                    token: self.method.clone(),
+                    message: format!("Undefined property '{}'.", self.method.lexeme),
+                }))
+            }
         };
-    Ok(Value::Callable(LoxCallable::LoxFunction(std::rc::Rc::new(method.bind(object)))))
+        Ok(Value::Callable(LoxCallable::LoxFunction(std::rc::Rc::new(
+            method.bind(object),
+        ))))
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
         match resolver.current_class {
-            ClassType::NONE => Lox::error_token(&self.keyword, "Can't use 'super' outside of a class."),
-            ClassType::CLASS => Lox::error_token(&self.keyword, "Can't use 'super' in a class with no superclass."),
+            ClassType::NONE => {
+                Lox::error_token(&self.keyword, "Can't use 'super' outside of a class.")
+            }
+            ClassType::CLASS => Lox::error_token(
+                &self.keyword,
+                "Can't use 'super' in a class with no superclass.",
+            ),
             ClassType::SUBCLASS => resolver.resolve_local(self.id, self.keyword.clone()),
-
         }
     }
 }

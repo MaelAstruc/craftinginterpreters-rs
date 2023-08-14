@@ -142,8 +142,16 @@ pub struct LoxClass {
 }
 
 impl LoxClass {
-    pub fn new(name: String, superclass: Option<Rc<LoxClass>>, methods: HashMap<String, LoxFunction>) -> Self {
-        LoxClass { name, superclass, methods }
+    pub fn new(
+        name: String,
+        superclass: Option<Rc<LoxClass>>,
+        methods: HashMap<String, LoxFunction>,
+    ) -> Self {
+        LoxClass {
+            name,
+            superclass,
+            methods,
+        }
     }
 
     pub fn arity(&self) -> usize {
