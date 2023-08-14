@@ -261,7 +261,7 @@ impl Stmt for Class {
         
         let klass = Value::Callable(LoxCallable::LoxClass(Rc::new(LoxClass {
             name: self.name.lexeme.clone(),
-            superclass: superclass,
+            superclass,
             methods,
         })));
         
