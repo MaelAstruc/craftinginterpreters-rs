@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::time::SystemTime;
 
 use crate::callable::{LoxCallable, LoxClock};
 use crate::environment::{EnvRef, Environment};
@@ -14,6 +15,7 @@ pub struct Interpreter {
     pub other_environment: Option<EnvRef>,
     pub globals: EnvRef,
     pub locals: HashMap<usize, usize>,
+    pub begin_time: SystemTime
 }
 
 impl Default for Interpreter {
@@ -38,6 +40,7 @@ impl Interpreter {
             other_environment: None,
             globals,
             locals: HashMap::new(),
+            begin_time: SystemTime::now(),
         }
     }
 

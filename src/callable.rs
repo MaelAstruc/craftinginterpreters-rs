@@ -2,7 +2,6 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::environment::{EnvRef, Environment};
 use crate::interpreter::Interpreter;
@@ -96,11 +95,14 @@ impl LoxFunction {
         let mut result = Ok(Value::Nil);
         for stmt in &self.declaration.body {
             result = stmt.execute(interpreter);
+            if result.is_err() {
+                break;
+            }
         }
         interpreter.environment = previous;
 
         match result {
-            Ok(_) => (),
+            Ok(_) => println!("no error"),
             Err(x) => match x {
                 LoxError::RuntimeError(_) if self.is_initializer => {
                     return self.closure.deref_mut().get_at(0, "this".into())
@@ -263,11 +265,13 @@ impl LoxClock {
 
     pub fn call(
         &self,
-        _interpreter: &mut Interpreter,
+        interpreter: &mut Interpreter,
         _arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
-        match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(x) => Ok(Value::Number(x.as_secs_f32())),
+        match interpreter.begin_time.elapsed() {
+            Ok(x) => {
+                Ok(Value::Number(x.as_millis() as f32))
+            }
             Err(x) => panic!("{}", x),
         }
     }
