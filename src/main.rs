@@ -107,7 +107,7 @@ impl Lox {
 }
 
 fn main() {
-    let mut input = ["C:/Users/Mael/Documents/Temp/test.lox"];
+    let mut input = ["test/test.lox"];
     let mut lox: Lox = Lox {
         had_error: false,
         had_runtime_error: false,

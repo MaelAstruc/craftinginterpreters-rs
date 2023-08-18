@@ -60,10 +60,10 @@ impl Interpreter {
         self.locals.insert(expr, depth);
     }
 
-    pub fn look_up_var(&mut self, name: Token, expr_id: usize) -> Result<Value, LoxError> {
-        let distance = self.locals.get(&expr_id);
+    pub fn look_up_var(&mut self, name: &Token, expr_id: &usize) -> Result<Value, LoxError> {
+        let distance = self.locals.get(expr_id);
         match distance {
-            Some(x) => self.environment.deref_mut().get_at(*x, name.lexeme),
+            Some(x) => self.environment.deref_mut().get_at(*x, &name.lexeme),
             None => self.globals.deref_mut().get(name),
         }
     }
@@ -73,7 +73,7 @@ impl Interpreter {
         RuntimeError { token, message }
     }
 
-    pub fn check_operands(token: Token, message: &str, left: Value, right: Value) -> RuntimeError {
+    pub fn check_operands(token: &Token, message: &str, left: Value, right: Value) -> RuntimeError {
         panic!("{} {}, found {} and {}", message, token, left, right)
     }
 

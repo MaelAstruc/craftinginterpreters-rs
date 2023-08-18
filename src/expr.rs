@@ -94,21 +94,14 @@ pub struct Binary {
 
 impl Expr for Binary {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        let left: Value = match self.left.evaluate(interpreter) {
-            Ok(x) => x,
-            Err(x) => return Err(x),
-        };
-        let right: Value = match self.right.evaluate(interpreter) {
-            Ok(x) => x,
-            Err(x) => return Err(x),
-        };
+        let left: Value = self.left.evaluate(interpreter)?;
+        let right: Value = self.right.evaluate(interpreter)?;
         let token: &Token = &self.operator;
-        let token_type: &TokenType = &token.token_type;
-        match token_type {
+        match token.token_type {
             TokenType::Minus => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x - y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -118,7 +111,7 @@ impl Expr for Binary {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x + y)),
                 (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers or two strings",
                     x,
                     y,
@@ -127,7 +120,7 @@ impl Expr for Binary {
             TokenType::Slash => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x / y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -136,7 +129,7 @@ impl Expr for Binary {
             TokenType::Star => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x * y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -145,7 +138,7 @@ impl Expr for Binary {
             TokenType::Greater => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x > y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -154,7 +147,7 @@ impl Expr for Binary {
             TokenType::GreaterEqual => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x >= y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -163,7 +156,7 @@ impl Expr for Binary {
             TokenType::Less => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x < y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -172,7 +165,7 @@ impl Expr for Binary {
             TokenType::LessEqual => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Bool(x <= y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
-                    token.clone(),
+                    token,
                     "expected two numbers",
                     x,
                     y,
@@ -253,8 +246,7 @@ impl Expr for Unary {
             Err(x) => return Err(x),
         };
         let token = &self.operator;
-        let token_type = &token.token_type;
-        match token_type {
+        match &token.token_type {
             TokenType::Minus => match right {
                 Value::Number(x) => Ok(Value::Number(-x)),
                 x => Err(LoxError::RuntimeError(Interpreter::check_operand(
@@ -291,7 +283,7 @@ pub struct Var {
 
 impl Expr for Var {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        interpreter.look_up_var(self.name.clone(), self.id)
+        interpreter.look_up_var(&self.name, &self.id)
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
@@ -611,7 +603,7 @@ pub struct This {
 
 impl Expr for This {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        interpreter.look_up_var(self.keyword.clone(), self.id)
+        interpreter.look_up_var(&self.keyword, &self.id)
     }
 
     fn resolve(&self, resolver: &mut Resolver) {

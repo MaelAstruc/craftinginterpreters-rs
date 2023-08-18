@@ -36,21 +36,21 @@ impl Environment {
         environment
     }
 
-    pub fn get_at(&self, distance: usize, name: String) -> Result<Value, LoxError> {
+    pub fn get_at(&self, distance: usize, name: &str) -> Result<Value, LoxError> {
         if distance == 0 {
-            match self.values.get(&name) {
+            match self.values.get(name) {
                 Some(x) => return Ok(x.clone()),
                 None => panic!("Cannot find value"),
             }
         }
 
-        match self.ancestor(distance).deref_mut().values.get(&name) {
+        match self.ancestor(distance).deref_mut().values.get(name) {
             Some(x) => Ok(x.clone()),
             None => panic!("Cannot find value"),
         }
     }
 
-    pub fn get(&self, name: Token) -> Result<Value, LoxError> {
+    pub fn get(&self, name: &Token) -> Result<Value, LoxError> {
         if let Some(x) = self.values.get(&name.lexeme) {
             return Ok(x.clone());
         }
@@ -59,7 +59,7 @@ impl Environment {
         }
         let message = format!("Undefined variable '{}'.", name.lexeme);
         Err(LoxError::RuntimeError(RuntimeError {
-            token: name,
+            token: name.clone(),
             message,
         }))
     }
