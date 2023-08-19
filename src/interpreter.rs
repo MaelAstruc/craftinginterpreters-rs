@@ -15,7 +15,7 @@ pub struct Interpreter {
     pub other_environment: Option<EnvRef>,
     pub globals: EnvRef,
     pub locals: HashMap<usize, usize>,
-    pub begin_time: SystemTime
+    pub begin_time: SystemTime,
 }
 
 impl Default for Interpreter {

@@ -269,9 +269,7 @@ impl LoxClock {
         _arguments: Vec<Value>,
     ) -> Result<Value, LoxError> {
         match interpreter.begin_time.elapsed() {
-            Ok(x) => {
-                Ok(Value::Number(x.as_millis() as f32))
-            }
+            Ok(x) => Ok(Value::Number(x.as_millis() as f32)),
             Err(x) => panic!("{}", x),
         }
     }
