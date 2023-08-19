@@ -29,7 +29,7 @@ impl Scanner {
         }
         let last_token = Token {
             token_type: TokenType::Eof,
-            lexeme: "".to_string(),
+            lexeme: String::new(),
             line: self.line,
         };
         self.tokens.push(last_token);
@@ -50,30 +50,30 @@ impl Scanner {
             '*' => self.add_token(TokenType::Star),
             '!' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::BangEqual)
+                    self.add_token(TokenType::BangEqual);
                 } else {
-                    self.add_token(TokenType::Bang)
+                    self.add_token(TokenType::Bang);
                 }
             }
             '=' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::EqualEqual)
+                    self.add_token(TokenType::EqualEqual);
                 } else {
-                    self.add_token(TokenType::Equal)
+                    self.add_token(TokenType::Equal);
                 }
             }
             '<' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::LessEqual)
+                    self.add_token(TokenType::LessEqual);
                 } else {
-                    self.add_token(TokenType::Less)
+                    self.add_token(TokenType::Less);
                 }
             }
             '>' => {
                 if self.match_char('=') {
-                    self.add_token(TokenType::GreaterEqual)
+                    self.add_token(TokenType::GreaterEqual);
                 } else {
-                    self.add_token(TokenType::Greater)
+                    self.add_token(TokenType::Greater);
                 }
             }
             '/' => {
@@ -82,17 +82,14 @@ impl Scanner {
                         self.advance();
                     }
                 } else {
-                    self.add_token(TokenType::Slash)
+                    self.add_token(TokenType::Slash);
                 }
             }
-            ' ' => (),
-            '\r' => (),
-            '\t' => (),
             '\n' => self.line += 1,
             '"' => self.string(),
             '0'..='9' => self.number(),
             'a'..='z' | 'A'..='Z' | '_' => self.identifier(),
-            _ => (),
+            _ => (), // includes \t, \r, ' '
         }
     }
 
@@ -134,7 +131,7 @@ impl Scanner {
         }
         let value: String = self.source[(self.start)..(self.current)].to_string();
         let float: f32 = value.parse::<f32>().unwrap();
-        self.add_token(TokenType::Number(float))
+        self.add_token(TokenType::Number(float));
     }
 
     fn match_char(&mut self, expected: char) -> bool {
@@ -165,7 +162,7 @@ impl Scanner {
     fn string(&mut self) {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
-                self.line += 1
+                self.line += 1;
             }
             self.advance();
         }
@@ -175,7 +172,7 @@ impl Scanner {
         }
         self.advance();
         let value: String = self.source[(self.start + 1)..(self.current - 1)].to_string();
-        self.add_token(TokenType::String(value))
+        self.add_token(TokenType::String(value));
     }
 
     fn is_at_end(&self) -> bool {
@@ -195,7 +192,7 @@ impl Scanner {
             lexeme,
             line: self.line,
         };
-        self.tokens.push(new_token)
+        self.tokens.push(new_token);
     }
 }
 

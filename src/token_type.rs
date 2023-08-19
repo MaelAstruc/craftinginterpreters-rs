@@ -52,9 +52,8 @@ pub enum TokenType {
 impl std::fmt::Display for TokenType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match &self {
-            Self::Identifier(x) => write!(f, "{}", x),
-            Self::Number(x) => write!(f, "{}", x),
-            Self::String(x) => write!(f, "{}", x),
+            Self::Identifier(x) | Self::String(x) => write!(f, "{x}"),
+            Self::Number(x) => write!(f, "{x}"),
             _ => write!(f, "{:?}", &self),
         }
     }

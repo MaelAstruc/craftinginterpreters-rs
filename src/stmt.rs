@@ -58,15 +58,15 @@ impl Stmt for StmtEnum {
 impl fmt::Display for StmtEnum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            StmtEnum::Class(x) => write!(f, "{}", x),
-            StmtEnum::Block(x) => write!(f, "{}", x),
-            StmtEnum::Expression(x) => write!(f, "{}", x),
-            StmtEnum::Function(x) => write!(f, "{}", x),
-            StmtEnum::If(x) => write!(f, "{}", x),
-            StmtEnum::Print(x) => write!(f, "{}", x),
-            StmtEnum::Return(x) => write!(f, "{}", x),
-            StmtEnum::Var(x) => write!(f, "{}", x),
-            StmtEnum::While(x) => write!(f, "{}", x),
+            StmtEnum::Class(x) => write!(f, "{x}"),
+            StmtEnum::Block(x) => write!(f, "{x}"),
+            StmtEnum::Expression(x) => write!(f, "{x}"),
+            StmtEnum::Function(x) => write!(f, "{x}"),
+            StmtEnum::If(x) => write!(f, "{x}"),
+            StmtEnum::Print(x) => write!(f, "{x}"),
+            StmtEnum::Return(x) => write!(f, "{x}"),
+            StmtEnum::Var(x) => write!(f, "{x}"),
+            StmtEnum::While(x) => write!(f, "{x}"),
         }
     }
 }
@@ -106,7 +106,7 @@ impl Stmt for Print {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         match self.expression.evaluate(interpreter) {
             Ok(x) => {
-                println!("{}", x);
+                println!("{x}");
                 Ok(x)
             }
             Err(x) => Err(x),
@@ -184,7 +184,7 @@ impl Stmt for Block {
     fn resolve(&self, resolver: &mut Resolver) {
         resolver.begin_scope();
         for statement in &self.statements {
-            statement.resolve(resolver)
+            statement.resolve(resolver);
         }
         resolver.end_scope();
     }
@@ -198,7 +198,7 @@ impl fmt::Display for Block {
             message += statement.to_string().as_ref();
             message += "\n";
         }
-        write!(f, "{{ {} }}", message)
+        write!(f, "{{ {message} }}")
     }
 }
 
@@ -235,7 +235,7 @@ impl Stmt for Class {
             interpreter
                 .environment
                 .deref_mut()
-                .define("super".into(), Value::Callable(LoxCallable::LoxClass(x)))
+                .define("super".into(), Value::Callable(LoxCallable::LoxClass(x)));
             // TO DO: Super class as Value Rc RefCell
         }
 
@@ -278,10 +278,10 @@ impl Stmt for Class {
 
         if let Some(x) = &self.superclass {
             if x.name.lexeme == self.name.lexeme {
-                Lox::error_token(&x.name, "A class can't inherit from itself.")
+                Lox::error_token(&x.name, "A class can't inherit from itself.");
             }
             resolver.current_class = ClassType::SUBCLASS;
-            x.resolve(resolver)
+            x.resolve(resolver);
         }
 
         if self.superclass.is_some() {
@@ -297,9 +297,10 @@ impl Stmt for Class {
         }
 
         for method in &self.methods {
-            let declaration = match method.name.lexeme == "init" {
-                true => FunctionType::INITIALIZER,
-                false => FunctionType::METHOD,
+            let declaration = if method.name.lexeme == "init" {
+                FunctionType::INITIALIZER
+            } else {
+                FunctionType::METHOD
             };
             resolver.resolve_function(method, declaration);
         }
@@ -424,11 +425,11 @@ impl Stmt for Return {
 
     fn resolve(&self, resolver: &mut Resolver) {
         if let FunctionType::NONE = resolver.current_function {
-            Lox::error_token(&self.keyword, "Can't return from top-level code.")
+            Lox::error_token(&self.keyword, "Can't return from top-level code.");
         };
         match (&self.value, &resolver.current_function) {
             (Some(_), FunctionType::INITIALIZER) => {
-                Lox::error_token(&self.keyword, "Can't return a value from an initializer.")
+                Lox::error_token(&self.keyword, "Can't return a value from an initializer.");
             }
             (Some(x), _) => x.resolve(resolver),
             (None, _) => (),
@@ -439,7 +440,7 @@ impl Stmt for Return {
 impl fmt::Display for Return {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.value {
-            Some(x) => write!(f, "return {}", x),
+            Some(x) => write!(f, "return {x}"),
             None => write!(f, "return nil"),
         }
     }

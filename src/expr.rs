@@ -64,18 +64,18 @@ impl Expr for ExprEnum {
 impl fmt::Display for ExprEnum {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExprEnum::Binary(x) => write!(f, "{}", x),
-            ExprEnum::Grouping(x) => write!(f, "{}", x),
-            ExprEnum::Literal(x) => write!(f, "{}", x),
-            ExprEnum::Unary(x) => write!(f, "{}", x),
-            ExprEnum::Var(x) => write!(f, "{}", x),
-            ExprEnum::Assign(x) => write!(f, "{}", x),
-            ExprEnum::Logic(x) => write!(f, "{}", x),
-            ExprEnum::Call(x) => write!(f, "{}", x),
-            ExprEnum::Get(x) => write!(f, "{}", x),
-            ExprEnum::Set(x) => write!(f, "{}", x),
-            ExprEnum::Super(x) => write!(f, "{}", x),
-            ExprEnum::This(x) => write!(f, "{}", x),
+            ExprEnum::Binary(x) => write!(f, "{x}"),
+            ExprEnum::Grouping(x) => write!(f, "{x}"),
+            ExprEnum::Literal(x) => write!(f, "{x}"),
+            ExprEnum::Unary(x) => write!(f, "{x}"),
+            ExprEnum::Var(x) => write!(f, "{x}"),
+            ExprEnum::Assign(x) => write!(f, "{x}"),
+            ExprEnum::Logic(x) => write!(f, "{x}"),
+            ExprEnum::Call(x) => write!(f, "{x}"),
+            ExprEnum::Get(x) => write!(f, "{x}"),
+            ExprEnum::Set(x) => write!(f, "{x}"),
+            ExprEnum::Super(x) => write!(f, "{x}"),
+            ExprEnum::This(x) => write!(f, "{x}"),
         }
     }
 }
@@ -94,8 +94,8 @@ pub struct Binary {
 
 impl Expr for Binary {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        let left: Value = self.left.evaluate(interpreter)?;
-        let right: Value = self.right.evaluate(interpreter)?;
+        let left: &Value = &self.left.evaluate(interpreter)?;
+        let right: &Value = &self.right.evaluate(interpreter)?;
         let token: &Token = &self.operator;
         match token.token_type {
             TokenType::Minus => match (left, right) {
@@ -109,7 +109,7 @@ impl Expr for Binary {
             },
             TokenType::Plus => match (left, right) {
                 (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x + y)),
-                (Value::String(x), Value::String(y)) => Ok(Value::String(x + &y)),
+                (Value::String(x), Value::String(y)) => Ok(Value::String(x.clone() + y)),
                 (x, y) => Err(LoxError::RuntimeError(Interpreter::check_operands(
                     token,
                     "expected two numbers or two strings",
@@ -173,7 +173,7 @@ impl Expr for Binary {
             },
             TokenType::EqualEqual => Ok(Value::Bool(Interpreter::check_equal(left, right))),
             TokenType::BangEqual => Ok(Value::Bool(!Interpreter::check_equal(left, right))),
-            _ => panic!("Unexpected token: {}", token),
+            _ => panic!("Unexpected token: {token}"),
         }
     }
 
@@ -241,10 +241,7 @@ pub struct Unary {
 
 impl Expr for Unary {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        let right: Value = match self.right.evaluate(interpreter) {
-            Ok(x) => x,
-            Err(x) => return Err(x),
-        };
+        let right: &Value = &self.right.evaluate(interpreter)?;
         let token = &self.operator;
         match &token.token_type {
             TokenType::Minus => match right {
@@ -255,7 +252,7 @@ impl Expr for Unary {
                     x,
                 ))),
             },
-            TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(&right))),
+            TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(right))),
             _ => panic!(
                 "Expected tokens: {}, found token ({})",
                 "(-) or (!)",
@@ -290,15 +287,15 @@ impl Expr for Var {
         match resolver.scopes.last() {
             Some(x) => match x.get(&self.name.lexeme) {
                 Some(y) => match y {
-                    true => resolver.resolve_local(self.id, self.name.clone()),
+                    true => resolver.resolve_local(self.id, &self.name),
                     false => Lox::error_token(
                         &self.name,
                         "Can't read local variable in its own initializer.",
                     ),
                 },
-                None => resolver.resolve_local(self.id, self.name.clone()),
+                None => resolver.resolve_local(self.id, &self.name),
             },
-            None => resolver.resolve_local(self.id, self.name.clone()),
+            None => resolver.resolve_local(self.id, &self.name),
         }
     }
 }
@@ -333,7 +330,7 @@ impl Expr for Assign {
 
     fn resolve(&self, resolver: &mut Resolver) {
         self.value.resolve(resolver);
-        resolver.resolve_local(self.id, self.name.clone());
+        resolver.resolve_local(self.id, &self.name);
     }
 }
 
@@ -386,7 +383,7 @@ impl Expr for Call {
         let mut arguments: Vec<Value> = Vec::new();
 
         for argument in &self.arguments {
-            arguments.push(argument.evaluate(interpreter)?)
+            arguments.push(argument.evaluate(interpreter)?);
         }
         match self.callee.evaluate(interpreter)? {
             Value::Callable(x) => match x {
@@ -402,7 +399,7 @@ impl Expr for Call {
                             message,
                         }));
                     }
-                    y.call(interpreter, arguments)
+                    y.call(interpreter, &arguments)
                 }
                 LoxCallable::LoxClass(y) => {
                     if arguments.len() != y.arity() {
@@ -416,7 +413,7 @@ impl Expr for Call {
                             message,
                         }));
                     }
-                    y.call(interpreter, arguments)
+                    y.call(interpreter, &arguments)
                 }
                 LoxCallable::LoxClock(y) => {
                     if arguments.len() != y.arity() {
@@ -430,7 +427,7 @@ impl Expr for Call {
                             message,
                         }));
                     }
-                    y.call(interpreter, arguments)
+                    y.call(interpreter, &arguments)
                 }
             },
             _ => panic!(),
@@ -447,7 +444,7 @@ impl Expr for Call {
 
 impl fmt::Display for Call {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut arguments: String = "".into();
+        let mut arguments: String = String::new();
         for arg in &self.arguments {
             arguments += &arg.to_string();
             arguments += ", ";
@@ -466,7 +463,7 @@ impl Expr for Get {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let object = self.object.evaluate(interpreter)?;
         match object {
-            Value::LoxInstance(x) => x.get(self.name.clone()),
+            Value::LoxInstance(x) => x.get(&self.name),
             _ => Err(LoxError::RuntimeError(RuntimeError {
                 token: self.name.clone(),
                 message: "Only instances have properties.".into(),
@@ -579,7 +576,7 @@ impl Expr for Super {
                 &self.keyword,
                 "Can't use 'super' in a class with no superclass.",
             ),
-            ClassType::SUBCLASS => resolver.resolve_local(self.id, self.keyword.clone()),
+            ClassType::SUBCLASS => resolver.resolve_local(self.id, &self.keyword),
         }
     }
 }
@@ -612,7 +609,7 @@ impl Expr for This {
             return;
         }
 
-        resolver.resolve_local(self.id, self.keyword.clone())
+        resolver.resolve_local(self.id, &self.keyword);
     }
 }
 

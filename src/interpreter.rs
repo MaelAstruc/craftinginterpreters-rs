@@ -49,7 +49,7 @@ impl Interpreter {
             match statement.execute(self) {
                 Ok(_) => (),
                 Err(x) => match x {
-                    LoxError::RuntimeError(y) => lox.runtime_error(y),
+                    LoxError::RuntimeError(y) => lox.runtime_error(&y),
                     LoxError::Return(_) => todo!("Return outside of function"),
                 },
             }
@@ -68,13 +68,18 @@ impl Interpreter {
         }
     }
 
-    pub fn check_operand(token: Token, message: &str, value: Value) -> RuntimeError {
+    pub fn check_operand(token: Token, message: &str, value: &Value) -> RuntimeError {
         let message = format!("expected {message}, found {value}");
         RuntimeError { token, message }
     }
 
-    pub fn check_operands(token: &Token, message: &str, left: Value, right: Value) -> RuntimeError {
-        panic!("{} {}, found {} and {}", message, token, left, right)
+    pub fn check_operands(
+        token: &Token,
+        message: &str,
+        left: &Value,
+        right: &Value,
+    ) -> RuntimeError {
+        panic!("{message} {token}, found {left} and {right}")
     }
 
     pub fn check_bool(value: &Value) -> &bool {
@@ -84,20 +89,15 @@ impl Interpreter {
         }
     }
 
-    pub fn check_equal(left: Value, right: Value) -> bool {
+    pub fn check_equal(left: &Value, right: &Value) -> bool {
         match (left, right) {
-            (Value::Number(x), Value::Number(y)) => x == y,
+            (Value::Number(x), Value::Number(y)) => (x - y).abs() < f32::EPSILON,
             (Value::String(x), Value::String(y)) => x == y,
             (Value::Bool(x), Value::Bool(y)) => x == y,
             (Value::Nil, Value::Nil) => true,
             (Value::Callable(_), Value::Callable(_)) => false,
             (Value::LoxInstance(_), Value::LoxInstance(_)) => false,
-            (Value::Bool(_), _) => false,
-            (Value::Number(_), _) => false,
-            (Value::String(_), _) => false,
-            (Value::Nil, _) => false,
-            (Value::Callable(_), _) => false,
-            (Value::LoxInstance(_), _) => false,
+            (_, _) => false,
         }
     }
 }

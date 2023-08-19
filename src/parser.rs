@@ -60,14 +60,16 @@ impl Parser {
 
     pub fn class_declaration(&mut self) -> Box<StmtEnum> {
         let name = self
-            .consume(&TokenType::Identifier("".into()), "Expect class name.")
+            .consume(&TokenType::Identifier(String::new()), "Expect class name.")
             .clone();
 
         let superclass = match &self.peek().token_type {
             &TokenType::Less => {
                 self.advance();
-                let token =
-                    self.consume(&TokenType::Identifier("".into()), "Expect superclass name.");
+                let token = self.consume(
+                    &TokenType::Identifier(String::new()),
+                    "Expect superclass name.",
+                );
                 Some(expr::Var {
                     name: token.clone(),
                     id: self.var_count(),
@@ -88,8 +90,8 @@ impl Parser {
                     StmtEnum::Function(x) => x,
                     _ => panic!("Function should return functions, check the code."),
                 };
-                methods.push(function)
-            }
+                methods.push(function);
+            };
         }
 
         self.consume(&TokenType::RightBrace, "Expect '}' after class body.");
@@ -158,7 +160,7 @@ impl Parser {
 
         let mut increment = None;
         if !self.check(&TokenType::RightParen) {
-            increment = Some(self.expression())
+            increment = Some(self.expression());
         }
 
         self.consume(&TokenType::RightParen, "Expect ')' after for clauses.");
@@ -173,7 +175,7 @@ impl Parser {
                         expression: x,
                     }))),
                 ],
-            })))
+            })));
         }
 
         body = Box::new(StmtEnum::While(Box::new(stmt::While {
@@ -184,7 +186,7 @@ impl Parser {
         if let Some(x) = initializer {
             body = Box::new(StmtEnum::Block(Box::new(stmt::Block {
                 statements: vec![x, body],
-            })))
+            })));
         }
 
         body
@@ -238,7 +240,10 @@ impl Parser {
 
     pub fn var_declaration(&mut self) -> Box<StmtEnum> {
         let name: Token = self
-            .consume(&TokenType::Identifier("".into()), "Expect variable name.")
+            .consume(
+                &TokenType::Identifier(String::new()),
+                "Expect variable name.",
+            )
             .clone();
 
         let token: &Token = self.peek();
@@ -270,13 +275,13 @@ impl Parser {
     pub fn function(&mut self, kind: &str) -> Box<StmtEnum> {
         let name: Token = self
             .consume(
-                &TokenType::Identifier("".into()),
-                &format!("Expect {} name.", kind),
+                &TokenType::Identifier(String::new()),
+                &format!("Expect {kind} name."),
             )
             .clone();
         self.consume(
             &TokenType::LeftParen,
-            &format!("Expect '(' after {} name.", kind),
+            &format!("Expect '(' after {kind} name."),
         );
         let mut params: Vec<Token> = Vec::new();
         if !self.check(&TokenType::RightParen) {
@@ -285,8 +290,11 @@ impl Parser {
                     let _ = &self.error(self.peek(), "Can't have more than 255 parameters.");
                 }
                 params.push(
-                    self.consume(&TokenType::Identifier("".into()), "Expect parameter name.")
-                        .clone(),
+                    self.consume(
+                        &TokenType::Identifier(String::new()),
+                        "Expect parameter name.",
+                    )
+                    .clone(),
                 );
                 if !self.check(&TokenType::Comma) {
                     break;
@@ -297,7 +305,7 @@ impl Parser {
         self.consume(&TokenType::RightParen, "Expect ')' after parameters.");
         self.consume(
             &TokenType::LeftBrace,
-            &format!("Expect '{{' before {} body.", kind),
+            &format!("Expect '{{' before {kind} body."),
         );
         Box::new(StmtEnum::Function(Box::new(stmt::Function {
             name,
@@ -312,8 +320,7 @@ impl Parser {
         loop {
             let token = self.peek();
             match token.token_type {
-                TokenType::RightBrace => break,
-                TokenType::Eof => break,
+                TokenType::Eof | TokenType::RightBrace => break,
                 _ => statements.push(self.declaration()),
             }
         }
@@ -348,7 +355,7 @@ impl Parser {
                             value,
                         }))
                     }
-                    _ => panic!("{} {}", equals, "Invalid assignment target."),
+                    _ => panic!("{equals} Invalid assignment target."),
                 }
             }
             _ => expr,
@@ -366,7 +373,7 @@ impl Parser {
                 left: expr,
                 operator,
                 right,
-            }))
+            }));
         }
 
         expr
@@ -383,7 +390,7 @@ impl Parser {
                 left: expr,
                 operator,
                 right,
-            }))
+            }));
         }
 
         expr
@@ -497,13 +504,13 @@ impl Parser {
             match token.token_type {
                 TokenType::LeftParen => {
                     self.advance();
-                    expr = self.finish_call(expr)
+                    expr = self.finish_call(expr);
                 }
                 TokenType::Dot => {
                     self.advance();
                     let name = self
                         .consume(
-                            &TokenType::Identifier("".into()),
+                            &TokenType::Identifier(String::new()),
                             "Expect property name after '.'.",
                         )
                         .clone();
@@ -521,7 +528,7 @@ impl Parser {
 
         loop {
             if arguments.len() >= 255 {
-                self.error(self.peek(), "Can't have more than 255 arguments.")
+                self.error(self.peek(), "Can't have more than 255 arguments.");
             }
 
             if self.peek().token_type == TokenType::RightParen {
@@ -602,7 +609,7 @@ impl Parser {
                 self.consume(&TokenType::Dot, "Expect '.' after 'super'.");
                 let method = self
                     .consume(
-                        &TokenType::Identifier("".into()),
+                        &TokenType::Identifier(String::new()),
                         "Expect superclass method name.",
                     )
                     .clone();
@@ -665,7 +672,7 @@ impl Parser {
     }
 
     pub fn error(&self, token: &Token, message: &str) {
-        Lox::error_token(token, message)
+        Lox::error_token(token, message);
     }
 
     pub fn synchronize(&mut self) {

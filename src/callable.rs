@@ -20,8 +20,7 @@ pub enum LoxCallable {
 
 pub trait Callable {
     fn arity(&self) -> usize;
-    fn call(&self, interpreter: &mut Interpreter, arguments: Vec<Value>)
-        -> Result<Value, LoxError>;
+    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, LoxError>;
 }
 
 impl Callable for LoxCallable {
@@ -33,11 +32,7 @@ impl Callable for LoxCallable {
         }
     }
 
-    fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        arguments: Vec<Value>,
-    ) -> Result<Value, LoxError> {
+    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, LoxError> {
         match self {
             LoxCallable::LoxFunction(x) => x.call(interpreter, arguments),
             LoxCallable::LoxClass(x) => x.call(interpreter, arguments),
@@ -49,9 +44,9 @@ impl Callable for LoxCallable {
 impl fmt::Display for LoxCallable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LoxCallable::LoxFunction(x) => write!(f, "{}", x.to_owned()),
-            LoxCallable::LoxClass(x) => write!(f, "{}", x.to_owned()),
-            LoxCallable::LoxClock(x) => write!(f, "{}", x.to_owned()),
+            LoxCallable::LoxFunction(x) => write!(f, "{}", x.clone()),
+            LoxCallable::LoxClass(x) => write!(f, "{}", x.clone()),
+            LoxCallable::LoxClock(x) => write!(f, "{}", x.clone()),
         }
     }
 }
@@ -79,7 +74,7 @@ impl LoxFunction {
     pub fn call(
         &self,
         interpreter: &mut Interpreter,
-        arguments: Vec<Value>,
+        arguments: &[Value],
     ) -> Result<Value, LoxError> {
         let environment = EnvRef::new(Environment::new(Some(self.closure.clone())));
 
@@ -166,7 +161,7 @@ impl LoxClass {
     pub fn call(
         &self,
         interpreter: &mut Interpreter,
-        arguments: Vec<Value>,
+        arguments: &[Value],
     ) -> Result<Value, LoxError> {
         let instance = InstanceRef::new(LoxInstance::new(Rc::new((*self).clone())));
         if let Some(x) = self.find_method("init".into()) {
@@ -231,7 +226,7 @@ impl InstanceRef {
         self.instance.as_ref().borrow_mut()
     }
 
-    pub fn get(&self, name: Token) -> Result<Value, LoxError> {
+    pub fn get(&self, name: &Token) -> Result<Value, LoxError> {
         if let Some(x) = self.deref_mut().fields.get(&name.lexeme) {
             return Ok(x.clone());
         };
@@ -266,7 +261,7 @@ impl LoxClock {
     pub fn call(
         &self,
         interpreter: &mut Interpreter,
-        _arguments: Vec<Value>,
+        _arguments: &[Value],
     ) -> Result<Value, LoxError> {
         match interpreter.begin_time.elapsed() {
             Ok(x) => Ok(Value::Number(x.as_millis() as f32)),

@@ -41,7 +41,7 @@ impl Resolver<'_> {
 
     pub fn resolve(&mut self, statements: &Vec<Box<stmt::StmtEnum>>) {
         for statement in statements {
-            statement.resolve(self)
+            statement.resolve(self);
         }
     }
 
@@ -73,7 +73,7 @@ impl Resolver<'_> {
         };
     }
 
-    pub fn resolve_local(&mut self, expr: usize, name: Token) {
+    pub fn resolve_local(&mut self, expr: usize, name: &Token) {
         for (i, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(&name.lexeme) {
                 self.interpreter.resolve(expr, i);
@@ -91,7 +91,7 @@ impl Resolver<'_> {
             self.define(param);
         }
         for stmt in &function.body {
-            stmt.resolve(self)
+            stmt.resolve(self);
         }
         self.end_scope();
         self.current_function = enclosing_function;

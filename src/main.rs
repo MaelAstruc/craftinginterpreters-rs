@@ -54,7 +54,7 @@ impl Lox {
         let stdin: io::Stdin = io::stdin();
         while stdin.read_line(&mut buffer).is_ok() {
             let trimmed: &str = buffer.trim_end();
-            println!("> {}", trimmed);
+            println!("> {trimmed}");
             self.run(trimmed.to_string());
             buffer.clear();
         }
@@ -80,29 +80,29 @@ impl Lox {
             return;
         }
 
-        interpreter.interpret(self, statements)
+        interpreter.interpret(self, statements);
     }
 
     fn error(line: u32, message: &str) {
-        Self::report(line, "", message)
+        Self::report(line, "", message);
     }
 
     fn error_token(token: &Token, message: &str) {
         if token.token_type == TokenType::Eof {
-            Self::report(token.line, " at the end", message)
+            Self::report(token.line, " at the end", message);
         } else {
             let at: String = " at '".to_owned() + token.lexeme.as_ref() + "'";
-            Self::report(token.line, at.as_str(), message)
+            Self::report(token.line, at.as_str(), message);
         }
     }
 
-    fn runtime_error(&mut self, error: RuntimeError) {
+    fn runtime_error(&mut self, error: &RuntimeError) {
         println!("[line {}]\n{}", error.token.line, error.message);
         self.had_runtime_error = true;
     }
 
     fn report(line: u32, at: &str, message: &str) {
-        println!("[line {}] Error {}: {}", line, at, message)
+        println!("[line {line}] Error {at}: {message}");
     }
 }
 
@@ -112,5 +112,5 @@ fn main() {
         had_error: false,
         had_runtime_error: false,
     };
-    lox.main(&mut input)
+    lox.main(&mut input);
 }
