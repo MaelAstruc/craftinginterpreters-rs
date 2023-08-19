@@ -1,5 +1,5 @@
 use std::fs;
-use std::io;
+use std::io::Write;
 use std::process;
 
 pub mod callable;
@@ -30,17 +30,21 @@ pub struct Lox {
 }
 
 impl Lox {
-    fn main(&mut self, args: &mut [&str]) {
+    fn main(&mut self, args: Vec<String>) {
+        let mut interpreter = Interpreter::new();
         match args.len() {
-            1 => self.run_file(args[0]),
-            2.. => println!("Usage: Lox [script]"),
-            _ => self.run_prompt(),
+            1 => self.run_prompt(&mut interpreter),
+            2 => self.run_file(args.get(1).unwrap(), &mut interpreter),
+            _ => {
+                println!("Usage: Lox [script]");
+                process::exit(64)
+            },
         }
     }
 
-    pub fn run_file(&mut self, filepath: &str) {
+    pub fn run_file(&mut self, filepath: &String, interpreter: &mut Interpreter) {
         let code: String = fs::read_to_string(filepath).unwrap();
-        self.run(code);
+        self.run(code, interpreter);
         if self.had_error {
             process::exit(65)
         }
@@ -49,18 +53,24 @@ impl Lox {
         }
     }
 
-    pub fn run_prompt(&mut self) {
+    pub fn run_prompt(&mut self, interpreter: &mut Interpreter) {
         let mut buffer: String = String::new();
-        let stdin: io::Stdin = io::stdin();
-        while stdin.read_line(&mut buffer).is_ok() {
-            let trimmed: &str = buffer.trim_end();
-            println!("> {trimmed}");
-            self.run(trimmed.to_string());
-            buffer.clear();
+        loop {
+            print!("> ");
+            std::io::stdout().flush().unwrap();
+            match std::io::stdin().read_line(&mut buffer) {
+                Ok(_) if buffer.trim_end().is_empty() => break,
+                Ok(_) if buffer.trim_end().ends_with("///") => buffer = buffer.trim_end().trim_end_matches("///").to_string(),
+                Ok(_) => {
+                    self.run(buffer.trim_end().to_string(), interpreter);
+                    buffer = String::new();
+                },
+                Err(_) => break,
+            }
         }
     }
 
-    pub fn run(&mut self, code: String) {
+    pub fn run(&mut self, code: String, interpreter: &mut Interpreter) {
         let mut scanner: Scanner = Scanner::new(code);
         scanner.scan_tokens();
 
@@ -71,9 +81,7 @@ impl Lox {
             return;
         }
 
-        let mut interpreter = Interpreter::new();
-
-        let mut resolver = Resolver::new(&mut interpreter);
+        let mut resolver = Resolver::new(interpreter);
         resolver.resolve(&statements);
 
         if self.had_error {
@@ -107,10 +115,10 @@ impl Lox {
 }
 
 fn main() {
-    let mut input = ["test/test.lox"];
+    let args = std::env::args().collect();
     let mut lox: Lox = Lox {
         had_error: false,
         had_runtime_error: false,
     };
-    lox.main(&mut input);
+    lox.main(args);
 }
