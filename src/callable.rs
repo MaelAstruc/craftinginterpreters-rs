@@ -105,7 +105,7 @@ impl LoxFunction {
             Ok(_) => println!("no error"),
             Err(x) => match x {
                 LoxError::RuntimeError(_) if self.is_initializer => {
-                    return self.closure.deref_mut().get_at(0, "this".into())
+                    return self.closure.deref_mut().get_at(0, "this")
                 }
                 LoxError::RuntimeError(_) => return Err(x),
                 LoxError::Return(y) => return Ok(y.value),
@@ -113,7 +113,7 @@ impl LoxFunction {
         };
 
         if self.is_initializer {
-            return self.closure.deref_mut().get_at(0, "this".into());
+            return self.closure.deref_mut().get_at(0, "this");
         }
 
         Ok(Value::Nil)

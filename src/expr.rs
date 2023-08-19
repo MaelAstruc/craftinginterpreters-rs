@@ -538,7 +538,7 @@ impl Expr for Super {
         let superclass = interpreter
             .environment
             .deref_mut()
-            .get_at(*distance, "super".into())?;
+            .get_at(*distance, "super")?;
         let superclass = match &superclass {
             Value::Callable(x) => match x {
                 LoxCallable::LoxClass(y) => y,
@@ -550,7 +550,7 @@ impl Expr for Super {
         let object = interpreter
             .environment
             .deref_mut()
-            .get_at(distance - 1, "this".into())?;
+            .get_at(distance - 1, "this")?;
         let object = match object {
             Value::LoxInstance(x) => x,
             _ => panic!("Expected an instance"),

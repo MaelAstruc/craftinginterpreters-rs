@@ -83,10 +83,7 @@ pub struct Expression {
 
 impl Stmt for Expression {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        match self.expression.evaluate(interpreter) {
-            Ok(x) => Ok(x),
-            Err(x) => Err(x),
-        }
+        self.expression.evaluate(interpreter)
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
@@ -216,15 +213,7 @@ impl Stmt for Class {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let superclass = match &self.superclass {
             Some(x) => match x.evaluate(interpreter)? {
-                Value::Callable(y) => match y {
-                    LoxCallable::LoxClass(z) => Some(z),
-                    _ => {
-                        return Err(LoxError::RuntimeError(RuntimeError {
-                            token: x.name.clone(),
-                            message: "Superclass must be a class.".into(),
-                        }))
-                    }
-                },
+                Value::Callable(LoxCallable::LoxClass(y)) => Some(y.clone()),
                 _ => {
                     return Err(LoxError::RuntimeError(RuntimeError {
                         token: x.name.clone(),
