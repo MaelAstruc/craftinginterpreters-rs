@@ -19,3 +19,4 @@ perf*
 
 # Tests
 test.lox
+test/
