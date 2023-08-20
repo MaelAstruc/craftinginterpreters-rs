@@ -46,7 +46,7 @@ impl Environment {
 
         match self.ancestor(distance).deref_mut().values.get(name) {
             Some(x) => Ok(x.clone()),
-            None => return Err(LoxError::CallError(CallError::new(format!("Cannot find value '{name}' at distance {distance}")))),
+            None => Err(LoxError::CallError(CallError::new(format!("Cannot find value '{name}' at distance {distance}")))),
         }
     }
 

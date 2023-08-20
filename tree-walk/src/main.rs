@@ -30,7 +30,7 @@ pub struct Lox {
 }
 
 impl Lox {
-    fn main(&mut self, args: Vec<String>) {
+    fn main(&mut self, args: &Vec<String>) {
         let mut interpreter = Interpreter::new();
         match args.len() {
             1 => self.run_prompt(&mut interpreter),
@@ -120,5 +120,5 @@ fn main() {
         had_error: false,
         had_runtime_error: false,
     };
-    lox.main(args);
+    lox.main(&args);
 }

@@ -51,7 +51,7 @@ impl Interpreter {
                 Err(x) => match x {
                     LoxError::RuntimeError(y) => lox.runtime_error(&y),
                     LoxError::CallError(_) => unreachable!("Should be transformed in RuntimeError by Call | Super | This | Var expression"),
-                    LoxError::Return(_) => todo!("Return outside of function"),
+                    LoxError::Return(_) => unreachable!("What are you doing here ? The resolver shouldn't let return statement outside of functions"),
                 },
             }
         }

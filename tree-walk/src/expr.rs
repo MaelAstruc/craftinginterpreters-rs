@@ -557,7 +557,7 @@ impl Expr for Super {
     fn resolve(&self, resolver: &mut Resolver) {
         match resolver.current_class {
             ClassType::NONE => {
-                Lox::error_token(&self.keyword, "Can't use 'super' outside of a class.")
+                Lox::error_token(&self.keyword, "Can't use 'super' outside of a class.");
             }
             ClassType::CLASS => Lox::error_token(
                 &self.keyword,

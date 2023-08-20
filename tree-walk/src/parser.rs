@@ -65,12 +65,9 @@ impl Parser {
             }
             _ => self.statement(),
         };
-        match result {
-            Ok(x) => Some(x),
-            Err(_) => {
-                self.synchronize();
-                None
-            }
+        if let Ok(x) = result { Some(x) } else {
+            self.synchronize();
+            None
         }
     }
 
@@ -104,7 +101,7 @@ impl Parser {
             } else {
                 let function = match *self.function("method")? {
                     StmtEnum::Function(x) => x,
-                    _ => return Err(self.error(&self.peek(), "Function should return functions, check the code.")),
+                    _ => return Err(self.error(self.peek(), "Function should return functions, check the code.")),
                 };
                 methods.push(function);
             };
@@ -374,7 +371,7 @@ impl Parser {
                             value,
                         })))
                     }
-                    _ => Err(self.error(&equals, "{equals} Invalid assignment target.".into())),
+                    _ => Err(self.error(&equals, "{equals} Invalid assignment target.")),
                 }
             }
             _ => Ok(expr),
@@ -561,7 +558,7 @@ impl Parser {
                     self.advance();
                 }
                 TokenType::RightParen => break,
-                _ => return Err(self.error(&self.peek(), "Expected ',' or ')' after argument")),
+                _ => return Err(self.error(self.peek(), "Expected ',' or ')' after argument")),
             }
         }
 
@@ -646,7 +643,7 @@ impl Parser {
                     id: self.var_count(),
                 })))
             }
-            _ => Err(self.error(&token, "Unknown token"))
+            _ => Err(self.error(token, "Unknown token"))
         }
     }
 
@@ -702,17 +699,16 @@ impl Parser {
                 return;
             }
             match self.peek().token_type {
-                TokenType::Class => (),
-                TokenType::Fun => (),
-                TokenType::Var => (),
-                TokenType::For => (),
-                TokenType::If => (),
-                TokenType::While => (),
-                TokenType::Print => (),
-                TokenType::Return => (),
-                _ => (),
-            }
-            self.advance();
+                TokenType::Class => return,
+                TokenType::Fun => return,
+                TokenType::Var => return,
+                TokenType::For => return,
+                TokenType::If => return,
+                TokenType::While => return,
+                TokenType::Print => return,
+                TokenType::Return => return,
+                _ => self.advance()
+            };
         }
     }
 }
