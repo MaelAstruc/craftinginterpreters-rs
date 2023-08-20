@@ -50,6 +50,7 @@ impl Interpreter {
                 Ok(_) => (),
                 Err(x) => match x {
                     LoxError::RuntimeError(y) => lox.runtime_error(&y),
+                    LoxError::CallError(_) => unreachable!("Should be transformed in RuntimeError by Call | Super | This | Var expression"),
                     LoxError::Return(_) => todo!("Return outside of function"),
                 },
             }
@@ -79,7 +80,10 @@ impl Interpreter {
         left: &Value,
         right: &Value,
     ) -> RuntimeError {
-        panic!("{message} {token}, found {left} and {right}")
+        RuntimeError{
+            token: token.clone(),
+            message: format!("{message}, found {left} and {right}"),
+        }
     }
 
     pub fn check_bool(value: &Value) -> &bool {

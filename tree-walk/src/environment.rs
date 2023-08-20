@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    runtime_error::{LoxError, RuntimeError},
+    runtime_error::{LoxError, RuntimeError, CallError},
     token::Token,
     value::Value,
 };
@@ -40,13 +40,13 @@ impl Environment {
         if distance == 0 {
             match self.values.get(name) {
                 Some(x) => return Ok(x.clone()),
-                None => panic!("Cannot find value"),
+                None => return Err(LoxError::CallError(CallError::new(format!("Cannot find value '{name}' at distance {distance}")))),
             }
         }
 
         match self.ancestor(distance).deref_mut().values.get(name) {
             Some(x) => Ok(x.clone()),
-            None => panic!("Cannot find value"),
+            None => return Err(LoxError::CallError(CallError::new(format!("Cannot find value '{name}' at distance {distance}")))),
         }
     }
 
@@ -71,9 +71,9 @@ impl Environment {
         value: Value,
     ) -> Result<Value, LoxError> {
         if distance == 0 {
-            match self.values.insert(name.lexeme, value) {
+            match self.values.insert(name.lexeme.clone(), value) {
                 Some(x) => return Ok(x),
-                None => panic!("Cannot insert value"),
+                None => return Err(LoxError::RuntimeError(RuntimeError { token: name, message: "Cannot insert value".into() })),
             }
         }
 
@@ -81,10 +81,10 @@ impl Environment {
             .ancestor(distance)
             .deref_mut()
             .values
-            .insert(name.lexeme, value)
+            .insert(name.lexeme.clone(), value)
         {
             Some(x) => Ok(x),
-            None => panic!("Cannot insert value"),
+            None => Err(LoxError::RuntimeError(RuntimeError { token: name, message: "Cannot insert value".into() })),
         }
     }
 

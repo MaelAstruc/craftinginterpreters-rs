@@ -99,7 +99,7 @@ impl Lox {
         if token.token_type == TokenType::Eof {
             Self::report(token.line, " at the end", message);
         } else {
-            let at: String = " at '".to_owned() + token.lexeme.as_ref() + "'";
+            let at = format!(" at '{}'", token.lexeme);
             Self::report(token.line, at.as_str(), message);
         }
     }

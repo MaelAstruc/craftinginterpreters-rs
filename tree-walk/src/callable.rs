@@ -23,24 +23,6 @@ pub trait Callable {
     fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, LoxError>;
 }
 
-impl Callable for LoxCallable {
-    fn arity(&self) -> usize {
-        match self {
-            LoxCallable::LoxFunction(x) => x.arity(),
-            LoxCallable::LoxClass(x) => x.arity(),
-            LoxCallable::LoxClock(x) => x.arity(),
-        }
-    }
-
-    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, LoxError> {
-        match self {
-            LoxCallable::LoxFunction(x) => x.call(interpreter, arguments),
-            LoxCallable::LoxClass(x) => x.call(interpreter, arguments),
-            LoxCallable::LoxClock(x) => x.call(interpreter, arguments),
-        }
-    }
-}
-
 impl fmt::Display for LoxCallable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -58,20 +40,12 @@ pub struct LoxFunction {
     pub is_initializer: bool,
 }
 
-impl LoxFunction {
-    pub fn new(&self, declaration: stmt::Function, closure: EnvRef, is_initializer: bool) -> Self {
-        LoxFunction {
-            closure,
-            declaration,
-            is_initializer,
-        }
-    }
-
-    pub fn arity(&self) -> usize {
+impl Callable for LoxFunction {
+    fn arity(&self) -> usize {
         self.declaration.params.len()
     }
 
-    pub fn call(
+    fn call(
         &self,
         interpreter: &mut Interpreter,
         arguments: &[Value],
@@ -97,13 +71,13 @@ impl LoxFunction {
         interpreter.environment = previous;
 
         match result {
-            Ok(_) => println!("no error"),
+            Ok(_) => (),
             Err(x) => match x {
+                LoxError::Return(y) => return Ok(y.value),
                 LoxError::RuntimeError(_) if self.is_initializer => {
                     return self.closure.deref_mut().get_at(0, "this")
                 }
-                LoxError::RuntimeError(_) => return Err(x),
-                LoxError::Return(y) => return Ok(y.value),
+                _ => return Err(x),
             },
         };
 
@@ -112,6 +86,16 @@ impl LoxFunction {
         }
 
         Ok(Value::Nil)
+    }
+}
+
+impl LoxFunction {
+    pub fn new(&self, declaration: stmt::Function, closure: EnvRef, is_initializer: bool) -> Self {
+        LoxFunction {
+            closure,
+            declaration,
+            is_initializer,
+        }
     }
 
     pub fn bind(&self, instance: InstanceRef) -> LoxFunction {
@@ -138,6 +122,27 @@ pub struct LoxClass {
     pub methods: HashMap<String, LoxFunction>,
 }
 
+impl Callable for LoxClass {
+    fn arity(&self) -> usize {
+        match self.find_method("init".into()) {
+            Some(x) => x.arity(),
+            None => 0,
+        }
+    }
+
+    fn call(
+        &self,
+        interpreter: &mut Interpreter,
+        arguments: &[Value],
+    ) -> Result<Value, LoxError> {
+        let instance = InstanceRef::new(LoxInstance::new(Rc::new((*self).clone())));
+        if let Some(x) = self.find_method("init".into()) {
+            x.bind(instance.clone()).call(interpreter, arguments)?;
+        }
+        Ok(Value::LoxInstance(instance))
+    }
+}
+
 impl LoxClass {
     pub fn new(
         name: String,
@@ -151,25 +156,6 @@ impl LoxClass {
         }
     }
 
-    pub fn arity(&self) -> usize {
-        match self.find_method("init".into()) {
-            Some(x) => x.arity(),
-            None => 0,
-        }
-    }
-
-    pub fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        arguments: &[Value],
-    ) -> Result<Value, LoxError> {
-        let instance = InstanceRef::new(LoxInstance::new(Rc::new((*self).clone())));
-        if let Some(x) = self.find_method("init".into()) {
-            x.bind(instance.clone()).call(interpreter, arguments)?;
-        }
-        Ok(Value::LoxInstance(instance))
-    }
-
     pub fn find_method(&self, name: String) -> Option<&LoxFunction> {
         if let Some(x) = self.methods.get(&name) {
             return Some(x);
@@ -180,7 +166,7 @@ impl LoxClass {
         }
 
         None
-    }
+    }    
 }
 
 impl fmt::Display for LoxClass {
@@ -249,23 +235,19 @@ impl InstanceRef {
 
 pub struct LoxClock;
 
-impl LoxClock {
-    pub fn new(&self) -> Self {
-        LoxClock
-    }
-
-    pub fn arity(&self) -> usize {
+impl Callable for LoxClock {
+    fn arity(&self) -> usize {
         0
     }
 
-    pub fn call(
+    fn call(
         &self,
         interpreter: &mut Interpreter,
         _arguments: &[Value],
     ) -> Result<Value, LoxError> {
         match interpreter.begin_time.elapsed() {
             Ok(x) => Ok(Value::Number(x.as_millis() as f32)),
-            Err(x) => panic!("{}", x),
+            Err(_) => unreachable!("How did you manage to clock before interpreting the code ?"),
         }
     }
 }
