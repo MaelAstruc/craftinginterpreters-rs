@@ -279,10 +279,10 @@ impl Stmt for Class {
 
         if let Some(x) = &self.superclass {
             if x.name.lexeme == self.name.lexeme {
-                return Err(RuntimeError{
-                    token: x.name.clone(), 
-                    message: "A class can't inherit from itself.".into()
-            });
+                return Err(RuntimeError {
+                    token: x.name.clone(),
+                    message: "A class can't inherit from itself.".into(),
+                });
             }
             resolver.current_class = ClassType::SUBCLASS;
             x.resolve(resolver)?;
@@ -430,18 +430,16 @@ impl Stmt for Return {
 
     fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         if let FunctionType::NONE = resolver.current_function {
-            return Err(RuntimeError{
+            return Err(RuntimeError {
                 token: self.keyword.clone(),
-                message: "Can't return from top-level code.".into()
-            })
+                message: "Can't return from top-level code.".into(),
+            });
         };
         match (&self.value, &resolver.current_function) {
-            (Some(_), FunctionType::INITIALIZER) => {
-                Err(RuntimeError{
-                    token: self.keyword.clone(),
-                    message: "Can't return a value from an initializer.".into()
-                })
-            }
+            (Some(_), FunctionType::INITIALIZER) => Err(RuntimeError {
+                token: self.keyword.clone(),
+                message: "Can't return a value from an initializer.".into(),
+            }),
             (Some(x), _) => x.resolve(resolver),
             (None, _) => Ok(()),
         }

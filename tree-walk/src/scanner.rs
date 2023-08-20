@@ -173,10 +173,10 @@ impl Scanner {
             self.advance();
         }
         if self.is_at_end() {
-            return Err(ScannerError{
+            return Err(ScannerError {
                 line: self.line,
-                message: "Unterminated string.".into()
-            })
+                message: "Unterminated string.".into(),
+            });
         }
         self.advance();
         let value: String = self.source[(self.start + 1)..(self.current - 1)].to_string();

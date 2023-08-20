@@ -564,14 +564,14 @@ impl Parser {
                 if arguments.len() >= 255 {
                     return Err(self.error(self.peek(), "Can't have more than 255 arguments."));
                 }
-    
+
                 arguments.push(self.expression()?);
 
                 match self.peek().token_type {
                     TokenType::Comma => self.advance(),
                     _ => break,
                 };
-            } 
+            }
         }
 
         let paren: Token = self

@@ -37,7 +37,7 @@ impl Lox {
         Lox {
             had_error: false,
             had_runtime_error: false,
-            log: log,
+            log,
         }
     }
 
@@ -75,7 +75,10 @@ impl Lox {
                     buffer = buffer.trim_end().trim_end_matches("///").to_string()
                 }
                 Ok(_) if buffer.starts_with("run ") => {
-                    self.run_file(&buffer.replace("run ", "").trim_end().to_string(), interpreter);
+                    self.run_file(
+                        &buffer.replace("run ", "").trim_end().to_string(),
+                        interpreter,
+                    );
                     buffer = String::new();
                 }
                 Ok(_) => {
@@ -94,7 +97,7 @@ impl Lox {
         }
 
         let mut parser: Parser = Parser::new(scanner.tokens);
-        let (statements, errors)= parser.parse();
+        let (statements, errors) = parser.parse();
 
         for error in errors {
             self.parser_error(&error)
@@ -124,8 +127,12 @@ impl Lox {
         let token = &error.token;
         let message = &error.message;
         match token.token_type {
-            TokenType::Eof => self.report(token.line, " at the end", &message),
-            _ => self.report(token.line, format!("at '{}'", token.lexeme).as_str(), &message),
+            TokenType::Eof => self.report(token.line, " at the end", message),
+            _ => self.report(
+                token.line,
+                format!("at '{}'", token.lexeme).as_str(),
+                message,
+            ),
         }
     }
 
@@ -151,14 +158,16 @@ pub struct Log {
 
 impl Log {
     pub fn new(debugging: bool) -> Self {
-        Self {debugging,  events: Rc::new(RefCell::new(Vec::new())) }
+        Self {
+            debugging,
+            events: Rc::new(RefCell::new(Vec::new())),
+        }
     }
 
     pub fn print(&self, event: String) {
         if self.debugging {
             self.events.as_ref().borrow_mut().push(event)
-        }
-        else {
+        } else {
             println!("{event}");
         }
     }
@@ -171,7 +180,6 @@ fn main() {
     lox.main(&args);
 }
 
-
 #[cfg(test)]
 mod test {
     use std::io::Write;
@@ -179,21 +187,7 @@ mod test {
     use glob::glob;
     use regex::Regex;
 
-    use crate::{Log, Lox, interpreter::Interpreter};
-
-
-
-    /*#[test]
-    fn test_all() {
-        println!("========== folder : main ==========");
-        test_folder("../test/");
-        for folder in glob("../test/*/").unwrap() {
-            let folder = folder.unwrap();
-            println!("{}", folder.file_name().unwrap().to_str().unwrap());
-            //let folderpath = folder.as_path().to_str().unwrap().to_string();
-            //test_folder(&folderpath);
-        }
-    }*/ */
+    use crate::{interpreter::Interpreter, Log, Lox};
 
     macro_rules! test_folder {
         ($folder:tt, $name:tt) => {
@@ -239,12 +233,12 @@ mod test {
     test_folder!(this, test_this);
     test_folder!(variable, test_variable);
     test_folder!(while, test_while);
-    
+
     fn test_folder(folder_path: &str) {
         for entry in glob(&format!("{folder_path}/*.lox")).unwrap() {
             let entry = entry.unwrap();
             let filepath = entry.as_path().to_str().unwrap().to_string();
-            
+
             test_file(&filepath);
         }
         let _ = std::io::stdout().flush();
@@ -266,19 +260,37 @@ mod test {
         // Get list of expected outcomes
         for (id, line) in code.lines().enumerate() {
             if expected_output_pattern.is_match(line) {
-                expected_outcomes.push((id, Regex::new(r".*// expect: ").unwrap().replace(line, "").to_string()));
+                expected_outcomes.push((
+                    id,
+                    Regex::new(r".*// expect: ")
+                        .unwrap()
+                        .replace(line, "")
+                        .to_string(),
+                ));
                 continue;
             }
             if expected_error_pattern.is_match(line) {
-                expected_outcomes.push((id, Regex::new(r".*//").unwrap().replace(line, "").to_string()));
+                expected_outcomes.push((
+                    id,
+                    Regex::new(r".*//").unwrap().replace(line, "").to_string(),
+                ));
                 continue;
             }
             if error_line_pattern.is_match(line) {
-                expected_outcomes.push((id, Regex::new(r".*//").unwrap().replace(line, "").to_string()));
+                expected_outcomes.push((
+                    id,
+                    Regex::new(r".*//").unwrap().replace(line, "").to_string(),
+                ));
                 continue;
             }
             if expected_runtime_error_pattern.is_match(line) {
-                expected_outcomes.push((id, Regex::new(r".*// expect runtime error: ").unwrap().replace(line, "").to_string()));
+                expected_outcomes.push((
+                    id,
+                    Regex::new(r".*// expect runtime error: ")
+                        .unwrap()
+                        .replace(line, "")
+                        .to_string(),
+                ));
                 continue;
             }
             if syntax_error_pattern.is_match(line) {
@@ -299,7 +311,7 @@ mod test {
 
         let mut interpreter = Interpreter::new(log.clone());
         lox.run(code, &mut interpreter);
-        
+
         assert_eq!(expected_outcomes.len(), log.events.as_ref().borrow().len());
 
         let len = expected_outcomes.len();
@@ -309,7 +321,10 @@ mod test {
             let expected = expected.trim();
             let found = log.events.as_ref().borrow();
             let found = found.get(i).unwrap().trim();
-            assert_eq!(expected, found, "\n => Test file '{filepath}' line {line}: expect '{expected}', '{found}'")
+            assert_eq!(
+                expected, found,
+                "\n => Test file '{filepath}' line {line}: expect '{expected}', '{found}'"
+            )
         }
     }
 }

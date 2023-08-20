@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use crate::{
     interpreter::Interpreter,
+    runtime_error::RuntimeError,
     stmt::{self, Function, Stmt},
     token::Token,
-    runtime_error::RuntimeError,
 };
 
 #[derive(Clone)]
@@ -59,10 +59,10 @@ impl Resolver<'_> {
         match self.scopes.last_mut() {
             Some(x) => {
                 if x.contains_key(&name.lexeme) {
-                    return Err(RuntimeError{
+                    return Err(RuntimeError {
                         token: name.clone(),
-                        message: "Already a variable with this name in this scope.".into()
-                    })
+                        message: "Already a variable with this name in this scope.".into(),
+                    });
                 }
                 x.insert(name.lexeme.clone(), false)
             }
@@ -87,7 +87,11 @@ impl Resolver<'_> {
         Ok(())
     }
 
-    pub fn resolve_function(&mut self, function: &Function, function_type: FunctionType) -> Result<(), RuntimeError> {
+    pub fn resolve_function(
+        &mut self,
+        function: &Function,
+        function_type: FunctionType,
+    ) -> Result<(), RuntimeError> {
         let enclosing_function = self.current_function.clone();
         self.current_function = function_type;
         self.begin_scope();

@@ -8,7 +8,7 @@ use crate::runtime_error::{LoxError, RuntimeError};
 use crate::stmt::{Stmt, StmtEnum};
 use crate::token::Token;
 use crate::value::Value;
-use crate::{Lox, Log};
+use crate::{Log, Lox};
 
 pub struct Interpreter {
     pub log: Log,
@@ -57,7 +57,7 @@ impl Interpreter {
         self.locals.insert(expr, depth);
         Ok(())
     }
-    
+
     pub fn print(&mut self, message: String) {
         self.log.print(message);
     }

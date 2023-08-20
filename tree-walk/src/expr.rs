@@ -226,7 +226,7 @@ impl Expr for Literal {
         Ok(self.value.clone())
     }
 
-    fn resolve(&self, _resolver: &mut Resolver) -> Result<(), RuntimeError>{
+    fn resolve(&self, _resolver: &mut Resolver) -> Result<(), RuntimeError> {
         Ok(())
     }
 }
@@ -296,9 +296,8 @@ impl Expr for Var {
                     true => resolver.resolve_local(self.id, &self.name),
                     false => Err(RuntimeError {
                         token: self.name.clone(),
-                        message: "Can't read local variable in its own initializer.".into()
-                    }
-                    ),
+                        message: "Can't read local variable in its own initializer.".into(),
+                    }),
                 },
                 None => resolver.resolve_local(self.id, &self.name),
             },
@@ -324,10 +323,11 @@ impl Expr for Assign {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         let value = self.value.evaluate(interpreter)?;
         match interpreter.locals.get(&self.id) {
-            Some(x) => interpreter
-                .environment
-                .deref_mut()
-                .assign_at(*x, self.name.clone(), value.clone())?,
+            Some(x) => interpreter.environment.deref_mut().assign_at(
+                *x,
+                self.name.clone(),
+                value.clone(),
+            )?,
             None => interpreter
                 .globals
                 .deref_mut()
@@ -573,16 +573,14 @@ impl Expr for Super {
 
     fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         match resolver.current_class {
-            ClassType::NONE =>
-                Err(RuntimeError{
-                    token: self.keyword.clone(),
-                    message: "Can't use 'super' outside of a class.".into()
-                }),
-            ClassType::CLASS => 
-                Err(RuntimeError{
-                    token: self.keyword.clone(),
-                    message: "Can't use 'super' in a class with no superclass.".into(),
-                }),
+            ClassType::NONE => Err(RuntimeError {
+                token: self.keyword.clone(),
+                message: "Can't use 'super' outside of a class.".into(),
+            }),
+            ClassType::CLASS => Err(RuntimeError {
+                token: self.keyword.clone(),
+                message: "Can't use 'super' in a class with no superclass.".into(),
+            }),
             ClassType::SUBCLASS => resolver.resolve_local(self.id, &self.keyword),
         }
     }
@@ -615,10 +613,10 @@ impl Expr for This {
 
     fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         if let ClassType::NONE = resolver.current_class {
-            return Err(RuntimeError{
+            return Err(RuntimeError {
                 token: self.keyword.clone(),
-                message: "Can't use 'this' outside of a class.".into()
-            })
+                message: "Can't use 'this' outside of a class.".into(),
+            });
         }
 
         resolver.resolve_local(self.id, &self.keyword)
