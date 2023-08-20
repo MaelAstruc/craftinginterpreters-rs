@@ -44,7 +44,7 @@ impl Parser {
         statements
     }
 
-    pub fn expression(&mut self)-> ParserResult<ExprEnum> {
+    pub fn expression(&mut self) -> ParserResult<ExprEnum> {
         self.assignment()
     }
 
@@ -65,7 +65,9 @@ impl Parser {
             }
             _ => self.statement(),
         };
-        if let Ok(x) = result { Some(x) } else {
+        if let Ok(x) = result {
+            Some(x)
+        } else {
             self.synchronize();
             None
         }
@@ -101,7 +103,12 @@ impl Parser {
             } else {
                 let function = match *self.function("method")? {
                     StmtEnum::Function(x) => x,
-                    _ => return Err(self.error(self.peek(), "Function should return functions, check the code.")),
+                    _ => {
+                        return Err(self.error(
+                            self.peek(),
+                            "Function should return functions, check the code.",
+                        ))
+                    }
                 };
                 methods.push(function);
             };
@@ -229,7 +236,9 @@ impl Parser {
     pub fn print_statement(&mut self) -> ParserResult<Box<StmtEnum>> {
         let value: ExprEnum = self.expression()?;
         self.consume(&TokenType::SemiColon, "Expect ';' after value.")?;
-        Ok(Box::new(StmtEnum::Print(Box::new(stmt::Print { expression: value }))))
+        Ok(Box::new(StmtEnum::Print(Box::new(stmt::Print {
+            expression: value,
+        }))))
     }
 
     pub fn return_statement(&mut self) -> ParserResult<Box<StmtEnum>> {
@@ -240,7 +249,10 @@ impl Parser {
             value = Some(self.expression()?);
         }
         self.consume(&TokenType::SemiColon, "Expect ';' after return value.")?;
-        Ok(Box::new(StmtEnum::Return(Box::new(stmt::Return { keyword, value }))))
+        Ok(Box::new(StmtEnum::Return(Box::new(stmt::Return {
+            keyword,
+            value,
+        }))))
     }
 
     pub fn while_statement(&mut self) -> ParserResult<Box<StmtEnum>> {
@@ -248,7 +260,10 @@ impl Parser {
         let condition = self.expression()?;
         self.consume(&TokenType::RightParen, "Expect ')' after condition.")?;
         let body = *self.statement()?;
-        Ok(Box::new(StmtEnum::While(Box::new(stmt::While { condition, body }))))
+        Ok(Box::new(StmtEnum::While(Box::new(stmt::While {
+            condition,
+            body,
+        }))))
     }
 
     pub fn var_declaration(&mut self) -> ParserResult<Box<StmtEnum>> {
@@ -274,7 +289,10 @@ impl Parser {
             "Expect ';' after variable declaration.",
         )?;
 
-        Ok(Box::new(StmtEnum::Var(Box::new(stmt::Var { name, initializer }))))
+        Ok(Box::new(StmtEnum::Var(Box::new(stmt::Var {
+            name,
+            initializer,
+        }))))
     }
 
     pub fn expression_statement(&mut self) -> ParserResult<Box<StmtEnum>> {
@@ -335,8 +353,8 @@ impl Parser {
             match token.token_type {
                 TokenType::Eof | TokenType::RightBrace => break,
                 _ => match self.declaration() {
-                        Some(x) => statements.push(x),
-                        None => continue,
+                    Some(x) => statements.push(x),
+                    None => continue,
                 },
             }
         }
@@ -345,7 +363,7 @@ impl Parser {
         Ok(statements)
     }
 
-    pub fn assignment(&mut self)-> ParserResult<ExprEnum> {
+    pub fn assignment(&mut self) -> ParserResult<ExprEnum> {
         let expr: ExprEnum = self.or()?;
 
         let token: &Token = self.peek();
@@ -378,7 +396,7 @@ impl Parser {
         }
     }
 
-    pub fn or(&mut self)-> ParserResult<ExprEnum> {
+    pub fn or(&mut self) -> ParserResult<ExprEnum> {
         let mut expr = self.and()?;
 
         while let TokenType::Or = self.peek().token_type {
@@ -395,7 +413,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn and(&mut self)-> ParserResult<ExprEnum> {
+    pub fn and(&mut self) -> ParserResult<ExprEnum> {
         let mut expr: ExprEnum = self.equality()?;
 
         while let TokenType::And = self.peek().token_type {
@@ -412,7 +430,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn equality(&mut self)-> ParserResult<ExprEnum> {
+    pub fn equality(&mut self) -> ParserResult<ExprEnum> {
         let mut expr: ExprEnum = self.comparison()?;
         loop {
             let token: &Token = self.peek();
@@ -433,7 +451,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn comparison(&mut self)-> ParserResult<ExprEnum> {
+    pub fn comparison(&mut self) -> ParserResult<ExprEnum> {
         let mut expr: ExprEnum = self.term()?;
         loop {
             let token: &Token = self.peek();
@@ -457,7 +475,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn term(&mut self)-> ParserResult<ExprEnum> {
+    pub fn term(&mut self) -> ParserResult<ExprEnum> {
         let mut expr: ExprEnum = self.factor()?;
         loop {
             let token: &Token = self.peek();
@@ -478,7 +496,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn factor(&mut self)-> ParserResult<ExprEnum> {
+    pub fn factor(&mut self) -> ParserResult<ExprEnum> {
         let mut expr: ExprEnum = self.unary()?;
         loop {
             let token: &Token = self.peek();
@@ -499,7 +517,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn unary(&mut self)-> ParserResult<ExprEnum> {
+    pub fn unary(&mut self) -> ParserResult<ExprEnum> {
         let token: &Token = self.peek();
         match &token.token_type {
             TokenType::Bang | TokenType::Minus => {
@@ -512,7 +530,7 @@ impl Parser {
         }
     }
 
-    pub fn call(&mut self)-> ParserResult<ExprEnum> {
+    pub fn call(&mut self) -> ParserResult<ExprEnum> {
         let mut expr: ExprEnum = self.primary()?;
 
         loop {
@@ -539,7 +557,7 @@ impl Parser {
         Ok(expr)
     }
 
-    pub fn finish_call(&mut self, callee: ExprEnum)-> ParserResult<ExprEnum> {
+    pub fn finish_call(&mut self, callee: ExprEnum) -> ParserResult<ExprEnum> {
         let mut arguments: Vec<ExprEnum> = Vec::new();
 
         loop {
@@ -572,7 +590,7 @@ impl Parser {
         })))
     }
 
-    pub fn primary(&mut self)-> ParserResult<ExprEnum> {
+    pub fn primary(&mut self) -> ParserResult<ExprEnum> {
         let token: &Token = self.peek();
         match &token.token_type {
             TokenType::False => {
@@ -589,7 +607,9 @@ impl Parser {
             }
             TokenType::Nil => {
                 self.advance();
-                Ok(ExprEnum::Literal(Box::new(expr::Literal { value: Value::Nil })))
+                Ok(ExprEnum::Literal(Box::new(expr::Literal {
+                    value: Value::Nil,
+                })))
             }
             TokenType::String(x) => {
                 let value: String = x.clone();
@@ -643,7 +663,7 @@ impl Parser {
                     id: self.var_count(),
                 })))
             }
-            _ => Err(self.error(token, "Unknown token"))
+            _ => Err(self.error(token, "Unknown token")),
         }
     }
 
@@ -688,7 +708,10 @@ impl Parser {
 
     pub fn error(&self, token: &Token, message: &str) -> ParserError {
         Lox::error_token(token, message);
-        ParserError{ token: token.clone(), message: message.into() }
+        ParserError {
+            token: token.clone(),
+            message: message.into(),
+        }
     }
 
     pub fn synchronize(&mut self) {
@@ -707,7 +730,7 @@ impl Parser {
                 TokenType::While => return,
                 TokenType::Print => return,
                 TokenType::Return => return,
-                _ => self.advance()
+                _ => self.advance(),
             };
         }
     }

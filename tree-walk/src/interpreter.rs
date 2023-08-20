@@ -80,7 +80,7 @@ impl Interpreter {
         left: &Value,
         right: &Value,
     ) -> RuntimeError {
-        RuntimeError{
+        RuntimeError {
             token: token.clone(),
             message: format!("{message}, found {left} and {right}"),
         }

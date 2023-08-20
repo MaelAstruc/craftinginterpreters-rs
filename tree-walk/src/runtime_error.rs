@@ -10,22 +10,25 @@ impl LoxError {
     pub fn handle_call(result: Result<Value, LoxError>, token: &Token) -> Result<Value, LoxError> {
         match result {
             Err(LoxError::CallError(x)) => Err(x.to_runtime(token)),
-            _ => result
+            _ => result,
         }
     }
 }
 
 pub struct CallError {
-    message: String
+    message: String,
 }
 
 impl CallError {
     pub fn new(message: String) -> Self {
-        CallError{ message }
+        CallError { message }
     }
 
-    pub fn to_runtime (&self, token: &Token) -> LoxError {
-        LoxError::RuntimeError(RuntimeError{ token: token.clone(), message: self.message.clone() })
+    pub fn to_runtime(&self, token: &Token) -> LoxError {
+        LoxError::RuntimeError(RuntimeError {
+            token: token.clone(),
+            message: self.message.clone(),
+        })
     }
 }
 

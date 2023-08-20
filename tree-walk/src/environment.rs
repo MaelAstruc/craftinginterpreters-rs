@@ -1,7 +1,7 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use crate::{
-    runtime_error::{LoxError, RuntimeError, CallError},
+    runtime_error::{CallError, LoxError, RuntimeError},
     token::Token,
     value::Value,
 };
@@ -40,13 +40,19 @@ impl Environment {
         if distance == 0 {
             match self.values.get(name) {
                 Some(x) => return Ok(x.clone()),
-                None => return Err(LoxError::CallError(CallError::new(format!("Cannot find value '{name}' at distance {distance}")))),
+                None => {
+                    return Err(LoxError::CallError(CallError::new(format!(
+                        "Cannot find value '{name}' at distance {distance}"
+                    ))))
+                }
             }
         }
 
         match self.ancestor(distance).deref_mut().values.get(name) {
             Some(x) => Ok(x.clone()),
-            None => Err(LoxError::CallError(CallError::new(format!("Cannot find value '{name}' at distance {distance}")))),
+            None => Err(LoxError::CallError(CallError::new(format!(
+                "Cannot find value '{name}' at distance {distance}"
+            )))),
         }
     }
 
@@ -73,7 +79,12 @@ impl Environment {
         if distance == 0 {
             match self.values.insert(name.lexeme.clone(), value) {
                 Some(x) => return Ok(x),
-                None => return Err(LoxError::RuntimeError(RuntimeError { token: name, message: "Cannot insert value".into() })),
+                None => {
+                    return Err(LoxError::RuntimeError(RuntimeError {
+                        token: name,
+                        message: "Cannot insert value".into(),
+                    }))
+                }
             }
         }
 
@@ -84,7 +95,10 @@ impl Environment {
             .insert(name.lexeme.clone(), value)
         {
             Some(x) => Ok(x),
-            None => Err(LoxError::RuntimeError(RuntimeError { token: name, message: "Cannot insert value".into() })),
+            None => Err(LoxError::RuntimeError(RuntimeError {
+                token: name,
+                message: "Cannot insert value".into(),
+            })),
         }
     }
 

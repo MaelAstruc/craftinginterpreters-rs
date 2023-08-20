@@ -45,11 +45,7 @@ impl Callable for LoxFunction {
         self.declaration.params.len()
     }
 
-    fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        arguments: &[Value],
-    ) -> Result<Value, LoxError> {
+    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, LoxError> {
         let environment = EnvRef::new(Environment::new(Some(self.closure.clone())));
 
         for (i, param) in self.declaration.params.iter().enumerate() {
@@ -130,11 +126,7 @@ impl Callable for LoxClass {
         }
     }
 
-    fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        arguments: &[Value],
-    ) -> Result<Value, LoxError> {
+    fn call(&self, interpreter: &mut Interpreter, arguments: &[Value]) -> Result<Value, LoxError> {
         let instance = InstanceRef::new(LoxInstance::new(Rc::new((*self).clone())));
         if let Some(x) = self.find_method("init".into()) {
             x.bind(instance.clone()).call(interpreter, arguments)?;
@@ -166,7 +158,7 @@ impl LoxClass {
         }
 
         None
-    }    
+    }
 }
 
 impl fmt::Display for LoxClass {
@@ -240,11 +232,7 @@ impl Callable for LoxClock {
         0
     }
 
-    fn call(
-        &self,
-        interpreter: &mut Interpreter,
-        _arguments: &[Value],
-    ) -> Result<Value, LoxError> {
+    fn call(&self, interpreter: &mut Interpreter, _arguments: &[Value]) -> Result<Value, LoxError> {
         match interpreter.begin_time.elapsed() {
             Ok(x) => Ok(Value::Number(x.as_millis() as f32)),
             Err(_) => unreachable!("How did you manage to clock before interpreting the code ?"),

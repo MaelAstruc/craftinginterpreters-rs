@@ -38,7 +38,7 @@ impl Lox {
             _ => {
                 println!("Usage: Lox [script]");
                 process::exit(64)
-            },
+            }
         }
     }
 
@@ -60,11 +60,13 @@ impl Lox {
             std::io::stdout().flush().unwrap();
             match std::io::stdin().read_line(&mut buffer) {
                 Ok(_) if buffer.trim_end().is_empty() => break,
-                Ok(_) if buffer.trim_end().ends_with("///") => buffer = buffer.trim_end().trim_end_matches("///").to_string(),
+                Ok(_) if buffer.trim_end().ends_with("///") => {
+                    buffer = buffer.trim_end().trim_end_matches("///").to_string()
+                }
                 Ok(_) => {
                     self.run(buffer.trim_end().to_string(), interpreter);
                     buffer = String::new();
-                },
+                }
                 Err(_) => break,
             }
         }

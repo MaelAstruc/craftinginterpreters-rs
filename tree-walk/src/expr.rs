@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::callable::{LoxCallable, Callable};
+use crate::callable::{Callable, LoxCallable};
 use crate::interpreter::Interpreter;
 use crate::resolver::{ClassType, Resolver};
 use crate::runtime_error::{LoxError, RuntimeError};
@@ -175,7 +175,7 @@ impl Expr for Binary {
             TokenType::BangEqual => Ok(Value::Bool(!Interpreter::check_equal(left, right))),
             _ => Err(LoxError::RuntimeError(RuntimeError {
                 token: token.clone(),
-                message: "Unexpected token in Binary".into()
+                message: "Unexpected token in Binary".into(),
             })),
         }
     }
@@ -256,9 +256,12 @@ impl Expr for Unary {
                 ))),
             },
             TokenType::Bang => Ok(Value::Bool(!Interpreter::check_bool(right))),
-            _ => Err(LoxError::RuntimeError(RuntimeError{ 
+            _ => Err(LoxError::RuntimeError(RuntimeError {
                 token: token.clone(),
-                message: format!("Expected tokens: (-) or (!), found token ({})", self.operator)
+                message: format!(
+                    "Expected tokens: (-) or (!), found token ({})",
+                    self.operator
+                ),
             })),
         }
     }
@@ -404,10 +407,10 @@ impl Expr for Call {
             },
             _ => Err(LoxError::RuntimeError(RuntimeError {
                 token: self.paren.clone(),
-                message: "Expected a Lox Class, Clock or Function before the parenthesis".into()
+                message: "Expected a Lox Class, Clock or Function before the parenthesis".into(),
             })),
         };
-        
+
         LoxError::handle_call(result, &self.paren)
     }
 
@@ -528,7 +531,12 @@ impl Expr for Super {
             .get_at(*distance, "super");
         let superclass = match LoxError::handle_call(superclass, &self.keyword)? {
             Value::Callable(LoxCallable::LoxClass(x)) => x,
-            _ => return Err(LoxError::RuntimeError(RuntimeError { token: self.keyword.clone(), message: "Expected a Lox Callable".into() }))
+            _ => {
+                return Err(LoxError::RuntimeError(RuntimeError {
+                    token: self.keyword.clone(),
+                    message: "Expected a Lox Callable".into(),
+                }))
+            }
         };
 
         let object = interpreter
@@ -537,7 +545,12 @@ impl Expr for Super {
             .get_at(distance - 1, "this");
         let object = match LoxError::handle_call(object, &self.keyword)? {
             Value::LoxInstance(x) => x,
-            _ => return Err(LoxError::RuntimeError(RuntimeError { token: self.method.clone(), message: "Expected an Instance".into() }))
+            _ => {
+                return Err(LoxError::RuntimeError(RuntimeError {
+                    token: self.method.clone(),
+                    message: "Expected an Instance".into(),
+                }))
+            }
         };
 
         let method = match superclass.find_method(self.method.lexeme.clone()) {
@@ -587,7 +600,10 @@ pub struct This {
 
 impl Expr for This {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
-        LoxError::handle_call(interpreter.look_up_var(&self.keyword, &self.id), &self.keyword)
+        LoxError::handle_call(
+            interpreter.look_up_var(&self.keyword, &self.id),
+            &self.keyword,
+        )
     }
 
     fn resolve(&self, resolver: &mut Resolver) {
