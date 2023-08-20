@@ -4,7 +4,7 @@ use crate::{
     interpreter::Interpreter,
     stmt::{self, Function, Stmt},
     token::Token,
-    Lox,
+    runtime_error::RuntimeError,
 };
 
 #[derive(Clone)]
@@ -39,10 +39,11 @@ impl Resolver<'_> {
         }
     }
 
-    pub fn resolve(&mut self, statements: &Vec<Box<stmt::StmtEnum>>) {
+    pub fn resolve(&mut self, statements: &Vec<Box<stmt::StmtEnum>>) -> Result<(), RuntimeError> {
         for statement in statements {
-            statement.resolve(self);
+            statement.resolve(self)?
         }
+        Ok(())
     }
 
     pub fn begin_scope(&mut self) {
@@ -54,16 +55,20 @@ impl Resolver<'_> {
         self.scopes.pop();
     }
 
-    pub fn declare(&mut self, name: &Token) {
+    pub fn declare(&mut self, name: &Token) -> Result<(), RuntimeError> {
         match self.scopes.last_mut() {
             Some(x) => {
                 if x.contains_key(&name.lexeme) {
-                    Lox::error_token(name, "Already a variable with this name in this scope.");
+                    return Err(RuntimeError{
+                        token: name.clone(),
+                        message: "Already a variable with this name in this scope.".into()
+                    })
                 }
                 x.insert(name.lexeme.clone(), false)
             }
             None => None,
         };
+        Ok(())
     }
 
     pub fn define(&mut self, name: &Token) {
@@ -73,27 +78,28 @@ impl Resolver<'_> {
         };
     }
 
-    pub fn resolve_local(&mut self, expr: usize, name: &Token) {
+    pub fn resolve_local(&mut self, expr: usize, name: &Token) -> Result<(), RuntimeError> {
         for (i, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(&name.lexeme) {
-                self.interpreter.resolve(expr, i);
-                return;
+                return self.interpreter.resolve(expr, i);
             }
         }
+        Ok(())
     }
 
-    pub fn resolve_function(&mut self, function: &Function, function_type: FunctionType) {
+    pub fn resolve_function(&mut self, function: &Function, function_type: FunctionType) -> Result<(), RuntimeError> {
         let enclosing_function = self.current_function.clone();
         self.current_function = function_type;
         self.begin_scope();
         for param in &function.params {
-            self.declare(param);
+            self.declare(param)?;
             self.define(param);
         }
         for stmt in &function.body {
-            stmt.resolve(self);
+            stmt.resolve(self)?;
         }
         self.end_scope();
         self.current_function = enclosing_function;
+        Ok(())
     }
 }

@@ -7,7 +7,6 @@ use crate::runtime_error::{LoxError, RuntimeError};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
-use crate::Lox;
 
 #[derive(Clone)]
 pub enum ExprEnum {
@@ -43,7 +42,7 @@ impl Expr for ExprEnum {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         match self {
             ExprEnum::Binary(x) => x.resolve(resolver),
             ExprEnum::Grouping(x) => x.resolve(resolver),
@@ -82,7 +81,7 @@ impl fmt::Display for ExprEnum {
 
 pub trait Expr: std::fmt::Display {
     fn evaluate(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError>;
-    fn resolve(&self, resolver: &mut Resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError>;
 }
 
 #[derive(Clone)]
@@ -180,9 +179,9 @@ impl Expr for Binary {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.left.resolve(resolver);
-        self.right.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.left.resolve(resolver)?;
+        self.right.resolve(resolver)
     }
 }
 
@@ -206,8 +205,8 @@ impl Expr for Grouping {
         self.expression.evaluate(interpreter)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.expression.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.expression.resolve(resolver)
     }
 }
 
@@ -227,7 +226,9 @@ impl Expr for Literal {
         Ok(self.value.clone())
     }
 
-    fn resolve(&self, _resolver: &mut Resolver) {}
+    fn resolve(&self, _resolver: &mut Resolver) -> Result<(), RuntimeError>{
+        Ok(())
+    }
 }
 
 impl fmt::Display for Literal {
@@ -266,8 +267,8 @@ impl Expr for Unary {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.right.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.right.resolve(resolver)
     }
 }
 
@@ -288,14 +289,15 @@ impl Expr for Var {
         LoxError::handle_call(interpreter.look_up_var(&self.name, &self.id), &self.name)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         match resolver.scopes.last() {
             Some(x) => match x.get(&self.name.lexeme) {
                 Some(y) => match y {
                     true => resolver.resolve_local(self.id, &self.name),
-                    false => Lox::error_token(
-                        &self.name,
-                        "Can't read local variable in its own initializer.",
+                    false => Err(RuntimeError {
+                        token: self.name.clone(),
+                        message: "Can't read local variable in its own initializer.".into()
+                    }
                     ),
                 },
                 None => resolver.resolve_local(self.id, &self.name),
@@ -325,17 +327,18 @@ impl Expr for Assign {
             Some(x) => interpreter
                 .environment
                 .deref_mut()
-                .assign_at(*x, self.name.clone(), value),
+                .assign_at(*x, self.name.clone(), value.clone())?,
             None => interpreter
                 .globals
                 .deref_mut()
-                .assign(self.name.clone(), value),
-        }
+                .assign(self.name.clone(), value.clone())?,
+        };
+        Ok(value)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.value.resolve(resolver);
-        resolver.resolve_local(self.id, &self.name);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.value.resolve(resolver)?;
+        resolver.resolve_local(self.id, &self.name)
     }
 }
 
@@ -364,9 +367,9 @@ impl Expr for Logic {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.left.resolve(resolver);
-        self.right.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.left.resolve(resolver)?;
+        self.right.resolve(resolver)
     }
 }
 
@@ -414,11 +417,12 @@ impl Expr for Call {
         LoxError::handle_call(result, &self.paren)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.callee.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.callee.resolve(resolver)?;
         for argument in &self.arguments {
-            argument.resolve(resolver);
+            argument.resolve(resolver)?;
         }
+        Ok(())
     }
 }
 
@@ -464,8 +468,8 @@ impl Expr for Get {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.object.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.object.resolve(resolver)
     }
 }
 
@@ -499,9 +503,9 @@ impl Expr for Set {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.value.resolve(resolver);
-        self.object.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.value.resolve(resolver)?;
+        self.object.resolve(resolver)
     }
 }
 
@@ -567,15 +571,18 @@ impl Expr for Super {
         ))))
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         match resolver.current_class {
-            ClassType::NONE => {
-                Lox::error_token(&self.keyword, "Can't use 'super' outside of a class.");
-            }
-            ClassType::CLASS => Lox::error_token(
-                &self.keyword,
-                "Can't use 'super' in a class with no superclass.",
-            ),
+            ClassType::NONE =>
+                Err(RuntimeError{
+                    token: self.keyword.clone(),
+                    message: "Can't use 'super' outside of a class.".into()
+                }),
+            ClassType::CLASS => 
+                Err(RuntimeError{
+                    token: self.keyword.clone(),
+                    message: "Can't use 'super' in a class with no superclass.".into(),
+                }),
             ClassType::SUBCLASS => resolver.resolve_local(self.id, &self.keyword),
         }
     }
@@ -606,13 +613,15 @@ impl Expr for This {
         )
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         if let ClassType::NONE = resolver.current_class {
-            Lox::error_token(&self.keyword, "Can't use 'this' outside of a class.");
-            return;
+            return Err(RuntimeError{
+                token: self.keyword.clone(),
+                message: "Can't use 'this' outside of a class.".into()
+            })
         }
 
-        resolver.resolve_local(self.id, &self.keyword);
+        resolver.resolve_local(self.id, &self.keyword)
     }
 }
 
@@ -621,60 +630,3 @@ impl fmt::Display for This {
         write!(f, "this")
     }
 }
-
-/*
-#[cfg(test)]
-  mod tests_expr {
-  use std::cell::RefCell;
-  use std::fmt;
-  use std::rc::Rc;
-
-  use crate::environment::Environment;
-  use crate::expr::Expr;
-  use crate::make_expr; // from mod utils
-  use crate::runtime_error::RuntimeError;
-  use crate::token::Token;
-  use crate::token_type::TokenType;
-  use crate::value::Value;
-
-
-  #[test]
-  fn test_make_expr() {
-    make_expr!(Literal, value:u8);
-
-    impl Expr for Literal {
-      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        Ok(Value::Nil)
-      }
-    }
-
-    impl fmt::Display for Literal {
-      fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", &self.value)
-      }
-    }
-    let literal: Literal = Literal{value: 8};
-    assert_eq!(literal.to_string(), "8".to_string());
-
-    make_expr!(Binary<T: Expr, U:Expr>, left: T, operator: Token, right: U);
-
-    impl<T: Expr, U:Expr> Expr for Binary<T, U> {
-      fn evaluate(&self, _environement: Rc<RefCell<Environment>>) -> Result<Value, LoxError> {
-        Ok(Value::Nil)
-      }
-    }
-
-    impl<T: Expr, U: Expr> fmt::Display for Binary<T, U> {
-      fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({} {} {})", &self.operator.lexeme, &self.left, &self.right)
-      }
-    }
-
-    let left: Literal = Literal{value: 3};
-    let right: Literal = Literal{value: 5};
-    let operator: Token = Token {token_type: TokenType::Plus, lexeme: "+".into(), line: 1};
-    let binary: Binary<Literal, Literal> = Binary{left, operator, right};
-    assert_eq!(binary.to_string(), "(+ 3 5)".to_string());
-  }
-}
-*/

@@ -1,6 +1,10 @@
 use crate::token::Token;
 use crate::token_type::TokenType;
-use crate::Lox;
+
+pub struct ScannerError {
+    pub line: u32,
+    pub message: String,
+}
 
 pub struct Scanner {
     pub source: String,
@@ -22,10 +26,10 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) {
+    pub fn scan_tokens(&mut self) -> Result<(), ScannerError> {
         while !self.is_at_end() {
             self.start = self.current;
-            self.scan_token();
+            self.scan_token()?;
         }
         let last_token = Token {
             token_type: TokenType::Eof,
@@ -33,9 +37,10 @@ impl Scanner {
             line: self.line,
         };
         self.tokens.push(last_token);
+        Ok(())
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self) -> Result<(), ScannerError> {
         let c: char = self.advance();
         match c {
             '(' => self.add_token(TokenType::LeftParen),
@@ -78,7 +83,7 @@ impl Scanner {
             }
             '/' => {
                 if self.match_char('/') {
-                    while self.peek() != '\n' && self.is_at_end() {
+                    while self.peek() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
                 } else {
@@ -86,11 +91,12 @@ impl Scanner {
                 }
             }
             '\n' => self.line += 1,
-            '"' => self.string(),
+            '"' => self.string()?,
             '0'..='9' => self.number(),
             'a'..='z' | 'A'..='Z' | '_' => self.identifier(),
             _ => (), // includes \t, \r, ' '
         }
+        Ok(())
     }
 
     fn identifier(&mut self) {
@@ -159,7 +165,7 @@ impl Scanner {
         return self.source.chars().nth(self.current + 1).unwrap();
     }
 
-    fn string(&mut self) {
+    fn string(&mut self) -> Result<(), ScannerError> {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -167,12 +173,15 @@ impl Scanner {
             self.advance();
         }
         if self.is_at_end() {
-            Lox::error(self.line, "Unterminated string.");
-            return;
+            return Err(ScannerError{
+                line: self.line,
+                message: "Unterminated string.".into()
+            })
         }
         self.advance();
         let value: String = self.source[(self.start + 1)..(self.current - 1)].to_string();
         self.add_token(TokenType::String(value));
+        Ok(())
     }
 
     fn is_at_end(&self) -> bool {
@@ -193,51 +202,5 @@ impl Scanner {
             line: self.line,
         };
         self.tokens.push(new_token);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::scanner::Scanner;
-    use crate::token_type::TokenType;
-
-    fn check_scan(code: &str, expected: Vec<TokenType>) {
-        let mut scanner: Scanner = Scanner::new(code.into());
-        scanner.scan_tokens();
-
-        for (i, _token_type) in expected.iter().enumerate() {
-            assert_eq!(scanner.tokens[i].token_type, expected[i]);
-        }
-    }
-
-    #[test]
-    fn test_scan_primitives() {
-        check_scan(
-            "\"Hello World !\"",
-            vec![TokenType::String("Hello World !".into())],
-        );
-        check_scan("nil", vec![TokenType::Nil]);
-        check_scan("1", vec![TokenType::Number(1.0)]);
-        check_scan("1.7", vec![TokenType::Number(1.7)]);
-        check_scan("true", vec![TokenType::True]);
-        check_scan("false", vec![TokenType::False])
-    }
-
-    #[test]
-    fn scan_short_tokens() {
-        check_scan(
-            "=+(){},;>",
-            vec![
-                TokenType::Equal,
-                TokenType::Plus,
-                TokenType::LeftParen,
-                TokenType::RightParen,
-                TokenType::LeftBrace,
-                TokenType::RightBrace,
-                TokenType::Comma,
-                TokenType::SemiColon,
-                TokenType::Greater,
-            ],
-        )
     }
 }

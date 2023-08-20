@@ -10,7 +10,6 @@ use crate::resolver::{ClassType, FunctionType, Resolver};
 use crate::runtime_error::{self, LoxError, RuntimeError};
 use crate::token::Token;
 use crate::value::Value;
-use crate::Lox;
 
 #[derive(Clone)]
 pub enum StmtEnum {
@@ -40,7 +39,7 @@ impl Stmt for StmtEnum {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         match self {
             StmtEnum::Class(x) => x.resolve(resolver),
             StmtEnum::Block(x) => x.resolve(resolver),
@@ -73,7 +72,7 @@ impl fmt::Display for StmtEnum {
 
 pub trait Stmt: std::fmt::Display {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError>;
-    fn resolve(&self, resolver: &mut Resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError>;
 }
 
 #[derive(Clone)]
@@ -86,8 +85,8 @@ impl Stmt for Expression {
         self.expression.evaluate(interpreter)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.expression.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.expression.resolve(resolver)
     }
 }
 
@@ -106,15 +105,15 @@ impl Stmt for Print {
     fn execute(&self, interpreter: &mut Interpreter) -> Result<Value, LoxError> {
         match self.expression.evaluate(interpreter) {
             Ok(x) => {
-                println!("{x}");
+                interpreter.print(x.to_string());
                 Ok(x)
             }
             Err(x) => Err(x),
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.expression.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.expression.resolve(resolver)
     }
 }
 
@@ -144,10 +143,11 @@ impl Stmt for Var {
         }
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        resolver.declare(&self.name);
-        self.initializer.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        resolver.declare(&self.name)?;
+        self.initializer.resolve(resolver)?;
         resolver.define(&self.name);
+        Ok(())
     }
 }
 
@@ -181,12 +181,13 @@ impl Stmt for Block {
         value
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         resolver.begin_scope();
         for statement in &self.statements {
-            statement.resolve(resolver);
+            statement.resolve(resolver)?;
         }
         resolver.end_scope();
+        Ok(())
     }
 }
 
@@ -269,19 +270,22 @@ impl Stmt for Class {
         Ok(Value::Nil)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         let enclosing_class = resolver.current_class.clone();
         resolver.current_class = ClassType::CLASS;
 
-        resolver.declare(&self.name);
+        resolver.declare(&self.name)?;
         resolver.define(&self.name);
 
         if let Some(x) = &self.superclass {
             if x.name.lexeme == self.name.lexeme {
-                Lox::error_token(&x.name, "A class can't inherit from itself.");
+                return Err(RuntimeError{
+                    token: x.name.clone(), 
+                    message: "A class can't inherit from itself.".into()
+            });
             }
             resolver.current_class = ClassType::SUBCLASS;
-            x.resolve(resolver);
+            x.resolve(resolver)?;
         }
 
         if self.superclass.is_some() {
@@ -302,7 +306,7 @@ impl Stmt for Class {
             } else {
                 FunctionType::METHOD
             };
-            resolver.resolve_function(method, declaration);
+            resolver.resolve_function(method, declaration)?;
         }
 
         resolver.end_scope();
@@ -312,6 +316,7 @@ impl Stmt for Class {
         }
 
         resolver.current_class = enclosing_class;
+        Ok(())
     }
 }
 
@@ -342,10 +347,10 @@ impl Stmt for Function {
         Ok(Value::Nil)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        resolver.declare(&self.name);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        resolver.declare(&self.name)?;
         resolver.define(&self.name);
-        resolver.resolve_function(self, FunctionType::FUNCTION);
+        resolver.resolve_function(self, FunctionType::FUNCTION)
     }
 }
 
@@ -378,12 +383,12 @@ impl Stmt for If {
         Ok(value)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.condition.resolve(resolver);
-        self.then_branch.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.condition.resolve(resolver)?;
+        self.then_branch.resolve(resolver)?;
         match &self.else_branch {
             Some(x) => x.resolve(resolver),
-            None => (),
+            None => Ok(()),
         }
     }
 }
@@ -423,16 +428,22 @@ impl Stmt for Return {
         Err(LoxError::Return(runtime_error::Return { value }))
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
         if let FunctionType::NONE = resolver.current_function {
-            Lox::error_token(&self.keyword, "Can't return from top-level code.");
+            return Err(RuntimeError{
+                token: self.keyword.clone(),
+                message: "Can't return from top-level code.".into()
+            })
         };
         match (&self.value, &resolver.current_function) {
             (Some(_), FunctionType::INITIALIZER) => {
-                Lox::error_token(&self.keyword, "Can't return a value from an initializer.");
+                Err(RuntimeError{
+                    token: self.keyword.clone(),
+                    message: "Can't return a value from an initializer.".into()
+                })
             }
             (Some(x), _) => x.resolve(resolver),
-            (None, _) => (),
+            (None, _) => Ok(()),
         }
     }
 }
@@ -472,9 +483,9 @@ impl Stmt for While {
         Ok(Value::Nil)
     }
 
-    fn resolve(&self, resolver: &mut Resolver) {
-        self.condition.resolve(resolver);
-        self.body.resolve(resolver);
+    fn resolve(&self, resolver: &mut Resolver) -> Result<(), RuntimeError> {
+        self.condition.resolve(resolver)?;
+        self.body.resolve(resolver)
     }
 }
 

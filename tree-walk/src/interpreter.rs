@@ -8,9 +8,10 @@ use crate::runtime_error::{LoxError, RuntimeError};
 use crate::stmt::{Stmt, StmtEnum};
 use crate::token::Token;
 use crate::value::Value;
-use crate::Lox;
+use crate::{Lox, Log};
 
 pub struct Interpreter {
+    pub log: Log,
     pub environment: EnvRef,
     pub other_environment: Option<EnvRef>,
     pub globals: EnvRef,
@@ -18,14 +19,8 @@ pub struct Interpreter {
     pub begin_time: SystemTime,
 }
 
-impl Default for Interpreter {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Interpreter {
-    pub fn new() -> Interpreter {
+    pub fn new(log: Log) -> Interpreter {
         let mut globals = Environment::new(None);
 
         globals.define(
@@ -36,6 +31,7 @@ impl Interpreter {
         let globals: EnvRef = EnvRef::new(globals);
 
         Interpreter {
+            log,
             environment: globals.clone(),
             other_environment: None,
             globals,
@@ -57,8 +53,13 @@ impl Interpreter {
         }
     }
 
-    pub fn resolve(&mut self, expr: usize, depth: usize) {
+    pub fn resolve(&mut self, expr: usize, depth: usize) -> Result<(), RuntimeError> {
         self.locals.insert(expr, depth);
+        Ok(())
+    }
+    
+    pub fn print(&mut self, message: String) {
+        self.log.print(message);
     }
 
     pub fn look_up_var(&mut self, name: &Token, expr_id: &usize) -> Result<Value, LoxError> {
@@ -105,122 +106,3 @@ impl Interpreter {
         }
     }
 }
-
-/*
-#[cfg(test)]
-mod tests_evaluate {
-    use std::f32::INFINITY;
-
-    use crate::value::Value;
-    use crate::parser::Parser;
-    use crate::scanner::Scanner;
-
-    fn check_evaluate(code: &str, expected: Value) {
-        let mut scanner : Scanner = Scanner::new(code.into());
-        scanner.scan_tokens();
-
-        let mut parser: Parser = Parser::new(scanner.tokens);
-
-        let result: Value = match parser.parse().evaluate() {
-            Ok(x) => x,
-            Err(x) => panic!("{}", x)
-        };
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn evaluate_nil() {
-        let code: &str = "nil";
-        let mut scanner : Scanner = Scanner::new(code.into());
-        scanner.scan_tokens();
-
-        let mut parser: Parser = Parser::new(scanner.tokens);
-
-        let result: Value = match parser.parse().evaluate() {
-            Ok(x) => x,
-            Err(x) => panic!("{}", x)
-        };
-
-        let expected: Value = Value::Nil;
-
-        assert_eq!(result, expected);
-    }
-
-    #[test]
-    fn evaluate_primary() {
-        check_evaluate("true", Value::Bool(true));
-        check_evaluate("false", Value::Bool(false));
-        check_evaluate("1", Value::Number(1.0));
-        check_evaluate("42", Value::Number(42.0));
-        check_evaluate("1.37", Value::Number(1.37));
-        check_evaluate("\"Hello World !\"", Value::String("Hello World !".into()));
-        check_evaluate("\"\t Hello \r\n World !\"", Value::String("\t Hello \r\n World !".into()));
-        check_evaluate("nil", Value::Nil)
-    }
-
-    #[test]
-    fn evaluate_bool() {
-        check_evaluate("!false", Value::Bool(true));
-        check_evaluate("!1", Value::Bool(false));
-        check_evaluate("!\"a\"", Value::Bool(false));
-        check_evaluate("!nil", Value::Bool(false));
-    }
-
-    #[test]
-    fn evaluate_grouping() {
-        check_evaluate("(-1)", Value::Number(-1.0));
-        check_evaluate("((-1))", Value::Number(-1.0))
-    }
-
-    #[test]
-    fn evaluate_unary() {
-        check_evaluate("!true", Value::Bool(false));
-        check_evaluate("!!true", Value::Bool(true));
-        check_evaluate("!!!true", Value::Bool(false));
-        check_evaluate("-1", Value::Number(-1.0));
-        check_evaluate("--1", Value::Number(1.0));
-    }
-
-    #[test]
-    fn evaluate_binary() {
-        check_evaluate("5-3", Value::Number(2.0));
-        check_evaluate("5 - 3", Value::Number(2.0));
-        check_evaluate("5--3", Value::Number(8.0));
-        check_evaluate("5+3", Value::Number(8.0));
-        check_evaluate("\"Hello\"+ \" \" + \"World\"", Value::String("Hello World".into()));
-        check_evaluate("3*5", Value::Number(15.0));
-        check_evaluate("3*0", Value::Number(0.0));
-        check_evaluate("3/5", Value::Number(0.6));
-        check_evaluate("3/0", Value::Number(INFINITY));
-        check_evaluate("5>3", Value::Bool(true));
-        check_evaluate("5>5", Value::Bool(false));
-        check_evaluate("5>7", Value::Bool(false));
-        check_evaluate("5>=3", Value::Bool(true));
-        check_evaluate("5>=5", Value::Bool(true));
-        check_evaluate("5>=7", Value::Bool(false));
-        check_evaluate("5<3", Value::Bool(false));
-        check_evaluate("5<5", Value::Bool(false));
-        check_evaluate("5<7", Value::Bool(true));
-        check_evaluate("5<=3", Value::Bool(false));
-        check_evaluate("5<=5", Value::Bool(true));
-        check_evaluate("5<=7", Value::Bool(true));
-        check_evaluate("5==5", Value::Bool(true));
-        check_evaluate("5==7", Value::Bool(false));
-        check_evaluate("\"a\"==\"a\"", Value::Bool(true));
-        check_evaluate("\"a\"==\"b\"", Value::Bool(false));
-        check_evaluate("true==true", Value::Bool(true));
-        check_evaluate("true==false", Value::Bool(false));
-        check_evaluate("nil==nil", Value::Bool(true));
-        check_evaluate("5!=5", Value::Bool(false));
-        check_evaluate("5!=7", Value::Bool(true));
-        check_evaluate("\"a\"!=\"a\"", Value::Bool(false));
-        check_evaluate("\"a\"!=\"b\"", Value::Bool(true));
-        check_evaluate("true!=true", Value::Bool(false));
-        check_evaluate("true!=false", Value::Bool(true));
-        check_evaluate("nil!=nil", Value::Bool(false));
-        check_evaluate("1==true", Value::Bool(false));
-        check_evaluate("1==\"a\"", Value::Bool(false));
-        check_evaluate("1==nil", Value::Bool(false));
-    }
-} */

@@ -3,7 +3,7 @@ use crate::stmt::{Function, StmtEnum};
 use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::value::Value;
-use crate::{expr, stmt, Lox};
+use crate::{expr, stmt};
 
 type ParserResult<T> = Result<T, ParserError>;
 
@@ -33,22 +33,23 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Vec<Box<StmtEnum>> {
+    pub fn parse(&mut self) -> (Vec<Box<StmtEnum>>, Vec<ParserError>) {
         let mut statements: Vec<Box<StmtEnum>> = Vec::new();
+        let mut errors: Vec<ParserError> = Vec::new();
         while !self.is_at_end() {
             match self.declaration() {
-                Some(x) => statements.push(x),
-                None => continue,
+                Ok(x) => statements.push(x),
+                Err(x) => errors.push(x),
             }
         }
-        statements
+        (statements, errors)
     }
 
     pub fn expression(&mut self) -> ParserResult<ExprEnum> {
         self.assignment()
     }
 
-    pub fn declaration(&mut self) -> Option<Box<StmtEnum>> {
+    pub fn declaration(&mut self) -> ParserResult<Box<StmtEnum>> {
         let token: &Token = self.peek();
         let result = match token.token_type {
             TokenType::Class => {
@@ -65,11 +66,12 @@ impl Parser {
             }
             _ => self.statement(),
         };
-        if let Ok(x) = result {
-            Some(x)
-        } else {
-            self.synchronize();
-            None
+        match result {
+            Ok(x) => Ok(x),
+            Err(x) => {
+                self.synchronize();
+                Err(x)
+            }
         }
     }
 
@@ -318,7 +320,7 @@ impl Parser {
         if !self.check(&TokenType::RightParen) {
             loop {
                 if params.len() >= 255 {
-                    let _ = &self.error(self.peek(), "Can't have more than 255 parameters.");
+                    return Err(self.error(self.peek(), "Can't have more than 255 parameters."));
                 }
                 params.push(
                     self.consume(
@@ -352,10 +354,7 @@ impl Parser {
             let token = self.peek();
             match token.token_type {
                 TokenType::Eof | TokenType::RightBrace => break,
-                _ => match self.declaration() {
-                    Some(x) => statements.push(x),
-                    None => continue,
-                },
+                _ => statements.push(self.declaration()?),
             }
         }
 
@@ -389,7 +388,7 @@ impl Parser {
                             value,
                         })))
                     }
-                    _ => Err(self.error(&equals, "{equals} Invalid assignment target.")),
+                    _ => Err(self.error(&equals, "Invalid assignment target.")),
                 }
             }
             _ => Ok(expr),
@@ -560,24 +559,19 @@ impl Parser {
     pub fn finish_call(&mut self, callee: ExprEnum) -> ParserResult<ExprEnum> {
         let mut arguments: Vec<ExprEnum> = Vec::new();
 
-        loop {
-            if arguments.len() >= 255 {
-                self.error(self.peek(), "Can't have more than 255 arguments.");
-            }
-
-            if self.peek().token_type == TokenType::RightParen {
-                break;
-            }
-
-            arguments.push(self.expression()?);
-
-            match self.peek().token_type {
-                TokenType::Comma => {
-                    self.advance();
+        if self.peek().token_type != TokenType::RightParen {
+            loop {
+                if arguments.len() >= 255 {
+                    return Err(self.error(self.peek(), "Can't have more than 255 arguments."));
                 }
-                TokenType::RightParen => break,
-                _ => return Err(self.error(self.peek(), "Expected ',' or ')' after argument")),
-            }
+    
+                arguments.push(self.expression()?);
+
+                match self.peek().token_type {
+                    TokenType::Comma => self.advance(),
+                    _ => break,
+                };
+            } 
         }
 
         let paren: Token = self
@@ -707,7 +701,6 @@ impl Parser {
     }
 
     pub fn error(&self, token: &Token, message: &str) -> ParserError {
-        Lox::error_token(token, message);
         ParserError {
             token: token.clone(),
             message: message.into(),
@@ -735,29 +728,3 @@ impl Parser {
         }
     }
 }
-
-/*
-#[cfg(test)]
-mod tests {
-    use crate::parser::Parser;
-    use crate::scanner::Scanner;
-
-    fn check_parse(code: &str, expected: &str) {
-        let mut scanner: Scanner = Scanner::new(code.into());
-        scanner.scan_tokens();
-
-        let mut parser: Parser = Parser::new(scanner.tokens);
-        for statement in parser.parse() {
-            assert_eq!(statement.to_string(), expected);
-        }
-    }
-
-    #[test]
-    fn parse_short_expr() {
-        check_parse(
-            "2 + 3 * 5 / (1 + 2) > 7;",
-            "(> (+ 2 (/ (* 3 5) (group (+ 1 2)))) 7)",
-        )
-    }
-}
-*/
